@@ -10,12 +10,23 @@
     
     <body>
         <script>
+            /*MD.get('im.tif', 
+                function(buffer) {
+                    var tiff = new MD.Tiff(buffer);
+                },
+                function() {
+                    throw 'Failed to fetch image';
+                })*/
+        
             MD.get('im.jpg', 
                 function(buffer) {
                     var jpeg = new MD.Jpeg(buffer);
                     var exifBuffer = jpeg.getExifBuffer();
                     if (exifBuffer) {
                         var exif = new MD.Tiff(exifBuffer);
+                        
+                        var tags = exif.getTagsByPath('/ifd[0]');
+                        console.log(tags);
                     }
                 },
                 function() {

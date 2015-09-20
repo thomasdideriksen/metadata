@@ -192,7 +192,6 @@ MD.Tiff.prototype = {
         MD.check(reader.read16u() == MD.TIFF_MAGIC, 'Invalid TIFF magic number');
         reader.position = reader.read32u();
         this.tree = this.parseTree(reader);
-        console.log(this.tree);
     },
     
     parseTree: function(reader) {
@@ -311,5 +310,70 @@ MD.Tiff.prototype = {
                 return 8;
             default: throw 'Invalid TIFF type (' + type + ')';
         }
+    },
+    
+    parsePathComponent: function(component) {
+        var result = undefined;
+        var m = /\w+\[\d+\]/.exec(component);
+        if (m) {
+            m = /(\w+)\[(\d+)\]/.exec(component);
+            if (m) {
+                result = {};
+                result.name = m[1];
+                result.index = parseInt(m[2]);
+            }
+        } else {
+            m = /(\w+)/.exec(component);
+            if (m) {
+                result = {};
+                result.name = m[1];
+                result.index = 0;
+            }
+        }
+        MD.check(result, 'Invalid path component: ' + component);
+        return result;
+    },
+    
+    getTagsByPath: function(path) {
+        MD.check(path && path.startsWith('/'), 'Invalid path: ' + path);
+        var components = path.split('/');
+        var trunk = this.tree;
+        var ifd = null;
+        for (var i = 1; i < components.length; i++) {
+            var component = components[i].trim().toLowerCase();
+            var data = this.parsePathComponent(component);
+            if (i % 2 == 1) {
+                MD.check(data.name == 'ifd', 'Invalid component (' + component + ') expected "ifd"');
+                if (data.index >= trunk.length) {
+                    return undefined;
+                }
+                ifd = trunk[data.index];
+                trunk = null;
+            } else {
+                var id;
+                switch (data.name) {
+                    case 'exif': id = MD.TIFF_ID_EXIFIFD; break;
+                    case 'gps': id = MD.TIFF_ID_GPSIFD; break;
+                    case 'interoperability': id = MD.TIFF_ID_INTEROPERABILITYIFD; break;
+                    case 'subifds': id = MD.TIFF_ID_SUBIFDS; break;
+                    default: 
+                        id = parseInt(data.name);
+                        MD.check(!isNaN(id), 'Invalid branch in path: ' + id);
+                        break;
+                }
+                if (!(id in ifd.branches)) {
+                    return undefined;
+                }
+                if (data.index >= ifd.branches[id].length) {
+                    return undefined;
+                }
+                trunk = ifd.branches[id][data.index];
+                ifd = null;
+            }
+        }
+        if (!ifd) {
+            ifd = trunk[0];
+        }
+        return ifd.tags;
     }
 }
