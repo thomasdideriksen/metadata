@@ -58,7 +58,7 @@ MD.get = function(url, success, failure) {
 }
 
 MD.BinaryReader = function(buffer, endian) {
-    this.view = new DataView(buffer);
+    this._view = new DataView(buffer);
     this.endian = endian;
     this.position = 0;
     this.length = buffer.byteLength;
@@ -72,7 +72,7 @@ MD.BinaryReader.prototype = {
         for (var i = 0; i < count; i++) {
             var item = [];
             for (var j = 0; j < subCount; j++) {
-                var subItem = this.view[fn](this.position, (this.endian == MD.LITTLE_ENDIAN));
+                var subItem = this._view[fn](this.position, (this.endian == MD.LITTLE_ENDIAN));
                 this.position += subSize;
                 item.push(subItem);
             }
@@ -93,7 +93,7 @@ MD.BinaryReader.prototype = {
     read64f: function() { return this.readGeneric('getFloat64', 8, 1, 1); },
     
     read: function(size) {
-        var result = this.view.buffer.slice(this.position, this.position + size);
+        var result = this._view.buffer.slice(this.position, this.position + size);
         this.position += size;
         return result;
     },
@@ -107,13 +107,13 @@ MD.BinaryReader.prototype = {
 
 MD.Jpeg = function(buffer) {
     this.segments = [];
-    this.parse(buffer);
+    this._parse(buffer);
 }
 
 MD.Jpeg.prototype = {
     constructor: MD.Jpeg,
     
-    parse: function(buffer) {
+    _parse: function(buffer) {
         var reader = new MD.BinaryReader(buffer, MD.BIG_ENDIAN);
         MD.check(reader.read8u() == 0xff, 'Invalid jpeg magic value');
         MD.check(reader.read8u() == MD.SOI, 'Invalid jpeg SOI marker');
@@ -137,7 +137,7 @@ MD.Jpeg.prototype = {
         }
     },
     
-    findSegments: function(marker, header) {
+    _findSegments: function(marker, header) {
         var result = [];
         for (var i = 0; i < this.segments.length; i++) {
             var segment = this.segments[i];
@@ -163,7 +163,7 @@ MD.Jpeg.prototype = {
     
     getExifBuffer: function() {
         var exifHeader = [0x45, 0x78, 0x69, 0x66, 0x0, 0x0];
-        var exifSegments = this.findSegments(MD.APP1, exifHeader);
+        var exifSegments = this._findSegments(MD.APP1, exifHeader);
         switch (exifSegments.length) {
             case 0: return undefined;
             case 1:
@@ -176,13 +176,13 @@ MD.Jpeg.prototype = {
 }
 
 MD.Tiff = function(buffer) {
-    this.parse(buffer);
+    this.tree = (buffer) ? this._parse(buffer) : [];
 }
 
 MD.Tiff.prototype = {
     constructor: MD.Tiff,
     
-    parse: function(buffer) {
+    _parse: function(buffer) {
         var reader = new MD.BinaryReader(buffer, MD.LITTLE_ENDIAN);
         switch (reader.read16u()) {
             case MD.TIFF_LITTLE_ENDIAN: reader.endian = MD.LITTLE_ENDIAN; break;
@@ -191,10 +191,10 @@ MD.Tiff.prototype = {
         }
         MD.check(reader.read16u() == MD.TIFF_MAGIC, 'Invalid TIFF magic number');
         reader.position = reader.read32u();
-        this.tree = this.parseTree(reader);
+        return this._parseTree(reader);
     },
     
-    parseTree: function(reader) {
+    _parseTree: function(reader) {
         var trunk = [];
         while (true) {
             var ifd = {
@@ -207,7 +207,7 @@ MD.Tiff.prototype = {
                 var type = reader.read16u();
                 var count = reader.read32u();
                 var nextPosition = reader.position + 4;
-                var payloadSize = count * this.getTypeSize(type);
+                var payloadSize = count * this._getTypeSize(type);
                 if (payloadSize > 4) {
                     reader.position = reader.read32u();
                 }
@@ -215,17 +215,17 @@ MD.Tiff.prototype = {
                 var tag = {
                     id: id,
                     type: type,
-                    data: this.parsePayload(payload, reader.endian, type, count)
+                    data: this._parsePayload(payload, reader.endian, type, count)
                 };
                 ifd.tags.push(tag);
-                if (this.isSubIFD(tag.id, tag.type)) {
+                if (this._isSubIFD(tag.id, tag.type)) {
                     MD.check(tag.type == MD.TIFF_TYPE_LONG || tag.type == MD.TIFF_TYPE_IFD, 'Invalid tag type for sub IFD (' + tag.type + ')');
                     MD.check(!(tag.id in ifd.branches), 'Multiple sub IFDs with same parent ID (' + tag.id + ')');
                     ifd.branches[tag.id] = [];
                     var offsets = (tag.data instanceof Array) ? tag.data : [tag.data];
                     for (var j = 0; j < offsets.length; j++) {
                         reader.position = offsets[j];
-                        ifd.branches[tag.id].push(this.parseTree(reader));
+                        ifd.branches[tag.id].push(this._parseTree(reader));
                     }
                 }
                 reader.position = nextPosition;
@@ -240,7 +240,7 @@ MD.Tiff.prototype = {
         return trunk;
     },
     
-    parsePayload: function(payload, endian, type, count) {
+    _parsePayload: function(payload, endian, type, count) {
         var reader = new MD.BinaryReader(payload, endian);
         switch (type) {
             case MD.TIFF_TYPE_UNDEFINED:
@@ -274,7 +274,7 @@ MD.Tiff.prototype = {
         }
     },
     
-    isSubIFD: function(id, type) {
+    _isSubIFD: function(id, type) {
         if (type == MD.TIFF_TYPE_IFD) {
             return true;
         }
@@ -289,7 +289,7 @@ MD.Tiff.prototype = {
         }
     },
     
-    getTypeSize: function(type) {
+    _getTypeSize: function(type) {
         switch (type) {
             case MD.TIFF_TYPE_BYTE:
             case MD.TIFF_TYPE_ASCII:
@@ -312,81 +312,112 @@ MD.Tiff.prototype = {
         }
     },
     
-    parsePathComponent: function(component) {
+    _parsePathComponent: function(component) {
         var result = undefined;
-        var m = /\w+\[\d+\]/.exec(component);
-        if (m) {
-            m = /(\w+)\[(\d+)\]/.exec(component);
-            if (m) {
-                result = {};
-                result.name = m[1];
-                result.index = parseInt(m[2]);
-            }
+        var match = /(\w+)\[(\d+)\]/.exec(component);
+        if (match) {
+            result = {};
+            result.name = match[1];
+            result.index = parseInt(match[2]);
         } else {
-            m = /(\w+)/.exec(component);
-            if (m) {
-                result = {};
-                result.name = m[1];
-                result.index = 0;
-            }
+            MD.check(result, 'Invalid path component: ' + component);
         }
-        MD.check(result, 'Invalid path component: ' + component);
         return result;
     },
     
-    SUBIFD_NAME_ID_MAPPING: {
+    _SUBIFD_NAME_ID_MAPPING: {
         'exif': MD.TIFF_ID_EXIFIFD,
         'gps': MD.TIFF_ID_GPSIFD,
         'interoperability': MD.TIFF_ID_INTEROPERABILITYIFD,
         'subifds': MD.TIFF_ID_SUBIFDS
     },
     
-    getTagsByPath: function(path) {
+    getTagsByPath: function(path, create) {
         MD.check(path && path.startsWith('/'), 'Invalid path: ' + path);
         var components = path.split('/');
         var trunk = this.tree;
         var ifd = null;
         for (var i = 1; i < components.length; i++) {
             var component = components[i].trim().toLowerCase();
-            var data = this.parsePathComponent(component);
+            var data = this._parsePathComponent(component);
             if (i % 2 == 1) {
                 MD.check(data.name == 'ifd', 'Invalid component (' + component + ') expected "ifd"');
                 if (data.index >= trunk.length) {
-                    return undefined;
+                    if (create) {
+                        for (var j = trunk.length; j <= data.index; j++) {
+                            trunk.push({
+                                tags: [],
+                                branches: {}
+                            });
+                        }
+                    } else {
+                        return undefined;
+                    }
                 }
                 ifd = trunk[data.index];
                 trunk = null;
             } else {
                 var id;
-                if (data.name in this.SUBIFD_NAME_ID_MAPPING) {
-                    id = this.SUBIFD_NAME_ID_MAPPING[data.name];
+                if (data.name in this._SUBIFD_NAME_ID_MAPPING) {
+                    id = this._SUBIFD_NAME_ID_MAPPING[data.name];
                 } else {
                     id = parseInt(data.name);
                     MD.check(!isNaN(id), 'Invalid branch in path: ' + id);
                 }
                 if (!(id in ifd.branches)) {
-                    return undefined;
+                    if (create) {
+                        ifd.branches[id] = [];
+                    } else {
+                        return undefined;
+                    }
                 }
                 if (data.index >= ifd.branches[id].length) {
-                    return undefined;
+                    if (create) {
+                        for (var j = ifd.branches[id].length; j <= data.index; j++) {
+                            ifd.branches[id].push([]);
+                        }
+                    } else {
+                        return undefined;
+                    }
                 }
                 trunk = ifd.branches[id][data.index];
                 ifd = null;
             }
         }
-        if (!ifd) {
-            ifd = trunk[0];
-        }
+        MD.check(ifd, 'Invalid path: ' + path + ', last component must be "ifd[N]"');
         return ifd.tags;
+    },
+    
+    getTag: function(path, id) {
+        var tags = this.getTagsByPath(path);
+        if (tags) {
+            for (var i = 0; i < tags.length; k++) {
+                if (tags[i].id == id) {
+                    return tags[i];
+                }
+            }
+        }
+        return undefined;
+    },
+    
+    removeTag: function(path, id) {
+        // TODO
+    },
+    
+    addTag: function(path, tag) {
+        var tags = this.getTagsByPath(path, true);
+        MD.check(tags, 'Failed to get or create path: ' + path);
+        // TODO: Remove tag to avoid duplicates
+        tags.push(tag);
     },
     
     enumerate: function() {
         var list = [];
-        this.enumerateRecursive(this.tree, list, '');
+        this._enumerateRecursive(this.tree, list, '');
         return list;
     },
     
-    enumerateRecursive: function(trunk, list, path) {
+    _enumerateRecursive: function(trunk, list, path) {
         for (var i = 0; i < trunk.length; i++) {
             var newPath = path + '/ifd[' + i + ']';
             var ifd = trunk[i];
@@ -399,14 +430,14 @@ MD.Tiff.prototype = {
             for (var j in ifd.branches) {
                 var subTrunks = ifd.branches[j];
                 var branchName = j.toString();
-                for (var name in this.SUBIFD_NAME_ID_MAPPING) {
-                    if (this.SUBIFD_NAME_ID_MAPPING[name] == j) {
+                for (var name in this._SUBIFD_NAME_ID_MAPPING) {
+                    if (this._SUBIFD_NAME_ID_MAPPING[name] == j) {
                         branchName = name;
                         break;
                     }
                 }
                 for (var k = 0; k < subTrunks.length; k++) {
-                    this.enumerateRecursive(subTrunks[k], list, newPath + '/' + branchName + '[' + k + ']');
+                    this._enumerateRecursive(subTrunks[k], list, newPath + '/' + branchName + '[' + k + ']');
                 }
             }
         }

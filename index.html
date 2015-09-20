@@ -10,13 +10,19 @@
     
     <body>
         <script>
-            /*MD.get('im.tif', 
+        /*
+            MD.get('im.tif', 
                 function(buffer) {
                     var tiff = new MD.Tiff(buffer);
+                    var list = tiff.enumerate();
+                    for (var i = 0; i < list.length; i++) {
+                        console.log(list[i].path + ' (' + list[i].tag.id + '): ' + list[i].tag.data);
+                    }
                 },
                 function() {
                     throw 'Failed to fetch image';
-                })*/
+                })
+               */
         
             MD.get('im.jpg', 
                 function(buffer) {
@@ -25,8 +31,10 @@
                     if (exifBuffer) {
                         var exif = new MD.Tiff(exifBuffer);
                         
-                        //var tags = exif.getTagsByPath('/ifd[0]/exif');
+                        //var tags = exif.getTagsByPath('/ifd[0]/exif[0]/ifd[0]');
                         //console.log(tags);
+                        
+                        exif.addTag('/ifd[5]', {id: 123, type: 2, data: 'thomas'});
                         
                         var list = exif.enumerate();
                         for (var i = 0; i < list.length; i++) {
@@ -37,6 +45,7 @@
                 function() {
                     throw 'Failed to fetch image';
                 });
+                
         </script>
     </body>
 
