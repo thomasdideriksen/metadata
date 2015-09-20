@@ -334,6 +334,13 @@ MD.Tiff.prototype = {
         return result;
     },
     
+    SUBIFD_NAME_ID_MAPPING: {
+        'exif': MD.TIFF_ID_EXIFIFD,
+        'gps': MD.TIFF_ID_GPSIFD,
+        'interoperability': MD.TIFF_ID_INTEROPERABILITYIFD,
+        'subifds': MD.TIFF_ID_SUBIFDS
+    },
+    
     getTagsByPath: function(path) {
         MD.check(path && path.startsWith('/'), 'Invalid path: ' + path);
         var components = path.split('/');
@@ -351,15 +358,11 @@ MD.Tiff.prototype = {
                 trunk = null;
             } else {
                 var id;
-                switch (data.name) {
-                    case 'exif': id = MD.TIFF_ID_EXIFIFD; break;
-                    case 'gps': id = MD.TIFF_ID_GPSIFD; break;
-                    case 'interoperability': id = MD.TIFF_ID_INTEROPERABILITYIFD; break;
-                    case 'subifds': id = MD.TIFF_ID_SUBIFDS; break;
-                    default: 
-                        id = parseInt(data.name);
-                        MD.check(!isNaN(id), 'Invalid branch in path: ' + id);
-                        break;
+                if (data.name in this.SUBIFD_NAME_ID_MAPPING) {
+                    id = this.SUBIFD_NAME_ID_MAPPING[data.name];
+                } else {
+                    id = parseInt(data.name);
+                    MD.check(!isNaN(id), 'Invalid branch in path: ' + id);
                 }
                 if (!(id in ifd.branches)) {
                     return undefined;
@@ -377,19 +380,6 @@ MD.Tiff.prototype = {
         return ifd.tags;
     },
     
-    compactPath: function(path) {
-        var result = path;
-        var ifd0 = 'ifd[0]';
-        if (result.endsWith(ifd0)) {
-            result = result.substr(0, result.length - ifd0.length);
-        }
-        result = result.replace(/\[0\]/g, '');
-        if (result.length > 1 && result.endsWith('/')) {
-            result = result.substr(0, result.length - 1);
-        }
-        return result;
-    },
-    
     enumerate: function() {
         var list = [];
         this.enumerateRecursive(this.tree, list, '');
@@ -403,14 +393,20 @@ MD.Tiff.prototype = {
             for (var j = 0; j < ifd.tags.length; j++) {
                 list.push({
                     path: newPath,
-                    compactPath: this.compactPath(newPath),
                     tag: ifd.tags[j]    
                 });
             }
             for (var j in ifd.branches) {
                 var subTrunks = ifd.branches[j];
+                var branchName = j.toString();
+                for (var name in this.SUBIFD_NAME_ID_MAPPING) {
+                    if (this.SUBIFD_NAME_ID_MAPPING[name] == j) {
+                        branchName = name;
+                        break;
+                    }
+                }
                 for (var k = 0; k < subTrunks.length; k++) {
-                    this.enumerateRecursive(subTrunks[k], list, newPath + '/' + j + '[' + k + ']');
+                    this.enumerateRecursive(subTrunks[k], list, newPath + '/' + branchName + '[' + k + ']');
                 }
             }
         }
