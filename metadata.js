@@ -388,35 +388,6 @@ MD.Tiff.prototype = {
         return ifd.tags;
     },
     
-    getTag: function(path, id) {
-        var tags = this.getTagsByPath(path);
-        if (tags) {
-            for (var i = 0; i < tags.length; k++) {
-                if (tags[i].id == id) {
-                    return tags[i];
-                }
-            }
-        }
-        return undefined;
-    },
-    
-    removeTag: function(path, id) {
-        // TODO
-    },
-    
-    addTag: function(path, tag) {
-        var tags = this.getTagsByPath(path, true);
-        MD.check(tags, 'Failed to get or create path: ' + path);
-        // TODO: Remove tag to avoid duplicates
-        tags.push(tag);
-    },
-    
-    enumerate: function() {
-        var list = [];
-        this._enumerateRecursive(this.tree, list, '');
-        return list;
-    },
-    
     _enumerateRecursive: function(trunk, list, path) {
         for (var i = 0; i < trunk.length; i++) {
             var newPath = path + '/ifd[' + i + ']';
@@ -441,5 +412,54 @@ MD.Tiff.prototype = {
                 }
             }
         }
+    },
+    
+    _removeTag: function(tags, id) {
+        if (tags) {
+            var idx = -1;
+            for (var i = 0; i < tags.length; i++) {
+                if (tags[i].id == id) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx >= 0) {
+                tags.splice(idx, 1);
+            }
+        }
+    },
+    
+    getTags: function(path) {
+        return this.getTagsByPath(path);
+    },
+    
+    getTag: function(path, id) {
+        var tags = this.getTagsByPath(path);
+        if (tags) {
+            for (var i = 0; i < tags.length; i++) {
+                if (tags[i].id == id) {
+                    return tags[i];
+                }
+            }
+        }
+        return undefined;
+    },
+    
+    removeTag: function(path, id) {
+        var tags = this.getTagsByPath(path);
+        this._removeTag(tags, id);
+    },
+    
+    addTag: function(path, tag) {
+        var tags = this.getTagsByPath(path, true);
+        MD.check(tags, 'Failed to get or create path: ' + path);
+        this._removeTag(tags, tag.id);
+        tags.push(tag);
+    },
+    
+    enumerate: function() {
+        var list = [];
+        this._enumerateRecursive(this.tree, list, '');
+        return list;
     }
 }
