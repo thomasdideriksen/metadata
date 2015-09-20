@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <title>Metadata</title>
+        <meta charset='UTF-8'>
+        <script src='metadata.js'></script> 
+    </head>
+    
+    <body>
+        <script>
+            MD.get('im.jpg', 
+                function(buffer) {
+                    var jpeg = new MD.Jpeg(buffer);
+                    var exifBuffer = jpeg.getExifBuffer();
+                    if (exifBuffer) {
+                        var exif = new MD.Tiff(exifBuffer);
+                    }
+                },
+                function() {
+                    throw 'Failed to fetch image';
+                });
+        </script>
+    </body>
+
+</html>
