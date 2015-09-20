@@ -25,8 +25,13 @@
                     if (exifBuffer) {
                         var exif = new MD.Tiff(exifBuffer);
                         
-                        var tags = exif.getTagsByPath('/ifd[0]');
-                        console.log(tags);
+                        //var tags = exif.getTagsByPath('/ifd[0]/exif');
+                        //console.log(tags);
+                        
+                        var list = exif.enumerate();
+                        for (var i = 0; i < list.length; i++) {
+                            console.log(list[i].compactPath + ' (' + list[i].tag.id + '): ' + list[i].tag.data);
+                        }
                     }
                 },
                 function() {

@@ -375,5 +375,44 @@ MD.Tiff.prototype = {
             ifd = trunk[0];
         }
         return ifd.tags;
+    },
+    
+    compactPath: function(path) {
+        var result = path;
+        var ifd0 = 'ifd[0]';
+        if (result.endsWith(ifd0)) {
+            result = result.substr(0, result.length - ifd0.length);
+        }
+        result = result.replace(/\[0\]/g, '');
+        if (result.length > 1 && result.endsWith('/')) {
+            result = result.substr(0, result.length - 1);
+        }
+        return result;
+    },
+    
+    enumerate: function() {
+        var list = [];
+        this.enumerateRecursive(this.tree, list, '');
+        return list;
+    },
+    
+    enumerateRecursive: function(trunk, list, path) {
+        for (var i = 0; i < trunk.length; i++) {
+            var newPath = path + '/ifd[' + i + ']';
+            var ifd = trunk[i];
+            for (var j = 0; j < ifd.tags.length; j++) {
+                list.push({
+                    path: newPath,
+                    compactPath: this.compactPath(newPath),
+                    tag: ifd.tags[j]    
+                });
+            }
+            for (var j in ifd.branches) {
+                var subTrunks = ifd.branches[j];
+                for (var k = 0; k < subTrunks.length; k++) {
+                    this.enumerateRecursive(subTrunks[k], list, newPath + '/' + j + '[' + k + ']');
+                }
+            }
+        }
     }
 }
