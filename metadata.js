@@ -26,6 +26,11 @@ MD.TIFF_TYPE_FLOAT = 11;
 MD.TIFF_TYPE_DOUBLE = 12;
 MD.TIFF_TYPE_IFD = 13;
 
+MD.TIFF_ID_EXIFIFD = 0x8769;
+MD.TIFF_ID_GPSIFD = 0x8825;
+MD.TIFF_ID_INTEROPERABILITYIFD = 0xA005;
+MD.TIFF_ID_SUBIFDS = 0x014A;
+
 MD.check = function(expr, msg) {
     if (!expr) {
         throw msg;
@@ -208,7 +213,6 @@ MD.Tiff.prototype = {
                     reader.position = reader.read32u();
                 }
                 var payload = reader.read(payloadSize);
-                reader.position = nextPosition;
                 var tag = {
                     id: id,
                     type: type,
@@ -216,11 +220,16 @@ MD.Tiff.prototype = {
                 };
                 ifd.tags.push(tag);
                 if (this.isSubIFD(tag.id, tag.type)) {
-                    var subIfds = (tag.data instanceof Array) ? tag.data : [tag.data];
-                    for (var j = 0; j < subIfds.length; j++) {
-                        // TODO
+                    MD.check(tag.type == MD.TIFF_TYPE_LONG || tag.type == MD.TIFF_TYPE_IFD, 'Invalid tag type for sub IFD (' + tag.type + ')');
+                    MD.check(!(tag.id in ifd.branches), 'Multiple sub IFDs with same parent ID (' + tag.id + ')');
+                    ifd.branches[tag.id] = [];
+                    var offsets = (tag.data instanceof Array) ? tag.data : [tag.data];
+                    for (var j = 0; j < offsets.length; j++) {
+                        reader.position = offsets[j];
+                        ifd.branches[tag.id].push(this.parseTree(reader));
                     }
                 }
+                reader.position = nextPosition;
             }
             trunk.push(ifd);
             var offset = reader.read32u();
@@ -267,7 +276,18 @@ MD.Tiff.prototype = {
     },
     
     isSubIFD: function(id, type) {
-        
+        if (type == MD.TIFF_TYPE_IFD) {
+            return true;
+        }
+        switch (id) {
+            case MD.TIFF_ID_EXIFIFD:
+            case MD.TIFF_ID_GPSIFD:
+            case MD.TIFF_ID_INTEROPERABILITYIFD:
+            case MD.TIFF_ID_SUBIFDS:
+                return true;
+            default: 
+                return false;
+        }
     },
     
     getTypeSize: function(type) {
