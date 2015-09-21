@@ -66,12 +66,29 @@
                         default: type = 'Unknown (' + list[i].tag.type + ')'; break;
                      }
                      cell2.innerHTML = type;
-                     cell3.innerHTML = list[i].tag.data;
+                     var dataToShow = '';
+                     var data = list[i].tag.data;
+                     if (data instanceof Array) {
+                        var showCount = 8;
+                        var truncate = data.length > showCount;
+                        for (var j = 0; j < Math.min(data.length, showCount); j++) {
+                            dataToShow += data[j];
+                            if (j < data.length) {
+                                dataToShow += ', ';
+                            }
+                        }
+                        if (truncate) {
+                            dataToShow += '(' + (data.length - showCount) + ' more)';
+                        }
+                     } else {
+                        dataToShow = data;
+                     }
+                     cell3.innerHTML = dataToShow;
                 }
             }
         
-        /*
-            MD.get('im.tif', 
+        
+            MD.get('im.nef', 
                 function(buffer) {
                     var tiff = new MD.Tiff(buffer);
                     var list = tiff.enumerate();
@@ -79,9 +96,9 @@
                 },
                 function() {
                     throw 'Failed to fetch image';
-                })*/
+                })
         
-        
+        /*
             MD.get('im.jpg', 
                 function(buffer) {
                     var jpeg = new MD.Jpeg(buffer);
@@ -91,8 +108,7 @@
                         
                         //var tags = exif.getTagsByPath('/ifd[0]/exif[0]/ifd[0]');
                         //console.log(tags);
-                        
-                        exif.addTag('/ifd[5]', {id: 123, type: 2, data: 'thomas'});
+                        //exif.addTag('/ifd[5]', {id: 123, type: 2, data: 'thomas'});
                         
                         var list = exif.enumerate();
                         emitTable(list);
@@ -100,7 +116,7 @@
                 },
                 function() {
                     throw 'Failed to fetch image';
-                });
+                });*/
         
         </script>
         
