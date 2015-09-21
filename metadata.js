@@ -362,7 +362,7 @@ MD.Tiff.prototype = {
                     id = this._SUBIFD_NAME_ID_MAPPING[data.name];
                 } else {
                     id = parseInt(data.name);
-                    MD.check(!isNaN(id), 'Invalid branch in path: ' + id);
+                    MD.check(!isNaN(id), 'Invalid branch in path: ' + data.name);
                 }
                 if (!(id in ifd.branches)) {
                     if (create) {

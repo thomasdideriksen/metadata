@@ -4,25 +4,83 @@
 
     <head>
         <title>Metadata</title>
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,600,700' rel='stylesheet' type='text/css'>
         <meta charset='UTF-8'>
         <script src='metadata.js'></script> 
+        <style>
+            html {
+                margin: 0px;
+                padding: 0px;
+            }
+            body {
+                margin: 0px;
+                padding: 32px;
+                background: #404040;
+                font-family: Open Sans;
+                font-weigth: 400;
+                font-size: 12px;
+                color: #ffffff;
+            }
+            #table {
+                border-collapse: collapse;
+            }
+            #table td, #table th {
+                border: 1px solid white;
+                white-space: nowrap;
+                padding: 2px 8px 2px 8px;
+            }
+            a {
+                color: #637ceb;
+            }
+        </style>
     </head>
     
     <body>
         <script>
+        
+            function emitTable(list) {
+                var table = document.getElementById('table');
+                for (var i = 0; i < list.length; i++) {
+                     var row = table.insertRow();
+                     var cell0 = row.insertCell(0);
+                     var cell1 = row.insertCell(1);
+                     var cell2 = row.insertCell(2);
+                     var cell3 = row.insertCell(3);
+                     cell0.innerHTML = list[i].path;
+                     cell1.innerHTML = '<a href="http://www.awaresystems.be/imaging/tiff/tifftags/search.html?q=' + list[i].tag.id + '">' + list[i].tag.id + '</a>';
+                     var type = '';
+                     switch (list[i].tag.type) {
+                        case MD.TIFF_TYPE_BYTE: type = 'BYTE'; break;
+                        case MD.TIFF_TYPE_ASCII: type = 'ASCII'; break;
+                        case MD.TIFF_TYPE_SHORT: type = 'SHORT'; break;
+                        case MD.TIFF_TYPE_LONG: type = 'LONG'; break;
+                        case MD.TIFF_TYPE_RATIONAL: type = 'RATIONAL'; break;
+                        case MD.TIFF_TYPE_SBYTE: type = 'SBYTE'; break;
+                        case MD.TIFF_TYPE_UNDEFINED: type = 'UNDEFINED'; break;
+                        case MD.TIFF_TYPE_SSHORT: type = 'SSHORT'; break;
+                        case MD.TIFF_TYPE_SLONG: type = 'SLONG'; break;
+                        case MD.TIFF_TYPE_SRATIONAL: type = 'SRATIONAL'; break;
+                        case MD.TIFF_TYPE_FLOAT: type = 'FLOAT'; break;
+                        case MD.TIFF_TYPE_DOUBLE: type = 'DOUBLE'; break;
+                        case MD.TIFF_TYPE_IFD: type = 'IFD'; break;
+                        default: type = 'Unknown (' + list[i].tag.type + ')'; break;
+                     }
+                     cell2.innerHTML = type;
+                     cell3.innerHTML = list[i].tag.data;
+                }
+            }
+        
         /*
             MD.get('im.tif', 
                 function(buffer) {
                     var tiff = new MD.Tiff(buffer);
                     var list = tiff.enumerate();
-                    for (var i = 0; i < list.length; i++) {
-                        console.log(list[i].path + ' (' + list[i].tag.id + '): ' + list[i].tag.data);
-                    }
+                    emitTable(list);
                 },
                 function() {
                     throw 'Failed to fetch image';
-                })
-               */
+                })*/
+        
         
             MD.get('im.jpg', 
                 function(buffer) {
@@ -37,16 +95,18 @@
                         exif.addTag('/ifd[5]', {id: 123, type: 2, data: 'thomas'});
                         
                         var list = exif.enumerate();
-                        for (var i = 0; i < list.length; i++) {
-                            console.log(list[i].path + ' (' + list[i].tag.id + '): ' + list[i].tag.data);
-                        }
+                        emitTable(list);
                     }
                 },
                 function() {
                     throw 'Failed to fetch image';
                 });
-                
+        
         </script>
+        
+        <table id='table'>
+        </table>
+        
     </body>
 
 </html>
