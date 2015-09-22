@@ -211,13 +211,11 @@ MD.Tiff.prototype = {
         var result = {};
         var list = this.enumerate();
         var lookup = {};
-        var currentPath = null;
         for (var i = 0; i < list.length; i++) {
-            if (currentPath != list[i].path) {
-                currentPath = list[i].path;
-                lookup[currentPath] = {};
+            if (!(list[i].path in lookup)) {
+                lookup[list[i].path] = {};
             }
-            lookup[currentPath][list[i].tag.id] = list[i].tag;
+            lookup[list[i].path][list[i].tag.id] = list[i].tag;
         }
         for (var path in lookup) {
             var tagLookup = lookup[path];
