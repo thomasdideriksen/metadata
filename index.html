@@ -7,6 +7,7 @@
         <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,600,700' rel='stylesheet' type='text/css'>
         <meta charset='UTF-8'>
         <script src='metadata.js'></script> 
+        <script src='base64.js'></script> 
         <style>
             html {
                 margin: 0px;
@@ -44,49 +45,6 @@
     
     <body>
         <script>
-            function uint8ToBase64 (uint8) {
-                var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-                var i
-                var extraBytes = uint8.length % 3 // if we have 1 byte left, pad 2 bytes
-                var output = ''
-                var temp, length
-
-                function encode (num) {
-                  return lookup.charAt(num)
-                }
-
-                function tripletToBase64 (num) {
-                  return encode(num >> 18 & 0x3F) + encode(num >> 12 & 0x3F) + encode(num >> 6 & 0x3F) + encode(num & 0x3F)
-                }
-
-                // go through the array every three bytes, we'll deal with trailing stuff later
-                for (i = 0, length = uint8.length - extraBytes; i < length; i += 3) {
-                  temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2])
-                  output += tripletToBase64(temp)
-                }
-
-                // pad the end with zeros, but make sure to not forget the extra bytes
-                switch (extraBytes) {
-                  case 1:
-                    temp = uint8[uint8.length - 1]
-                    output += encode(temp >> 2)
-                    output += encode((temp << 4) & 0x3F)
-                    output += '=='
-                    break
-                  case 2:
-                    temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1])
-                    output += encode(temp >> 10)
-                    output += encode((temp >> 4) & 0x3F)
-                    output += encode((temp << 2) & 0x3F)
-                    output += '='
-                    break
-                  default:
-                    break
-                }
-
-                return output
-            }
-
             function linkId(id) {
                 return '<a href="http://www.awaresystems.be/imaging/tiff/tifftags/search.html?q=' + id + '">' + id + '</a>';
             }
@@ -146,34 +104,42 @@
                         var dataForTag = dataForPath[i];
                         for (var j = 0; j < dataForTag.data.length; j++) {
                             
-                            (function(dataForTag, j) {
+                            var row = table.insertRow();
+                            var cell0 = row.insertCell(0);
+                            var cell1 = row.insertCell(1);
+                            var cell2 = row.insertCell(2);
+                            var cell3 = row.insertCell(3);
+                            var cell4 = row.insertCell(4);
                             
-                                var row = table.insertRow();
-                                var cell0 = row.insertCell(0);
-                                var cell1 = row.insertCell(1);
-                                var cell2 = row.insertCell(2);
-                                var cell3 = row.insertCell(3);
-                                var cell4 = row.insertCell(4);
+                            cell0.innerHTML = path;
+                            cell1.innerHTML = (dataForTag.data[j].byteLength / 1024).toFixed(1) + 'KB';
+                            cell2.innerHTML = linkId(dataForTag.positionTag.id);
+                            cell3.innerHTML = linkId(dataForTag.lengthTag.id);
                             
-                                var buffer = dataForTag.data[j];
-                                var im = new Image();
-                                var base64 = uint8ToBase64(new Uint8Array(buffer))
-                                im.onload = function() {
-                                    var div = document.createElement('div');
-                                    div.innerHTML = im.width + ' x ' + im.height;
-                                    im.style.width = '640px';
-                                    cell4.appendChild(im);
-                                    cell4.appendChild(div);
-                                    
-                                }
-                                im.src = 'data:image/jpg;base64,' + base64;
-                                
-                                cell0.innerHTML = path;
-                                cell1.innerHTML = (buffer.byteLength / 1024).toFixed(1) + 'KB';
-                                cell2.innerHTML = linkId(dataForTag.positionTag.id);
-                                cell3.innerHTML = linkId(dataForTag.lengthTag.id);
-                            })(dataForTag, j);
-                            
+                            var uint8 = new Uint8Array(dataForTag.data[j]);
+                            if (uint8[0] == 0xff && uint8[1] == 0xd8 && uint8[2] == 0xff && uint8[3] != 0xc3) {
+                                (function(buffer, cell) {
+                                    var worker = new Worker('worker.js');
+                                    worker.onmessage = function(msg) {
+                                        var div = document.createElement('div');
+                                        div.innerHTML = 'Loading...';
+                                        cell.appendChild(div);
+                                        var im = document.createElement('img');
+                                        im.onload = function() {
+                                            cell.removeChild(div);
+                                            cell.appendChild(im);
+                                            div.innerHTML = im.width + ' x ' + im.height;
+                                            cell.appendChild(div);
+                                            im.style.width = Math.min(im.width, 640) + 'px';
+                                        }
+                                        im.onerror = function() {
+                                            cell.removeChild(div);
+                                        }
+                                        im.src = 'data:image/jpg;base64,' + msg.data;
+                                    }
+                                    worker.postMessage(uint8);
+                                })(uint8, cell4);
+                            }
                         }
                     }
                 }
@@ -190,11 +156,9 @@
                         tiffBuffer = buffer;
                     }
                     var tiff = new MD.Tiff(tiffBuffer);
-                    var list = tiff.enumerate();
+                    var list = tiff.enumerate();                    
                     emitTagTable(list, document.getElementById('tagTable'));
                     emitDataTable(tiff.data, document.getElementById('dataTable'));
-                    
-
                 },
                 function() {
                     throw 'Failed to fetch image';
