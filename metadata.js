@@ -316,13 +316,11 @@ MD.Tiff.prototype = {
     _parsePathComponent: function(component) {
         var result = undefined;
         var match = /(\w+)\[(\d+)\]/.exec(component);
-        if (match) {
-            result = {};
-            result.name = match[1];
-            result.index = parseInt(match[2]);
-        } else {
-            MD.check(result, 'Invalid path component: ' + component);
-        }
+        MD.check(match, 'Invalid path component: ' + component);
+        result = {
+            name: match[1],
+            index: parseInt(match[2])
+        };
         return result;
     },
     
@@ -333,7 +331,7 @@ MD.Tiff.prototype = {
         'subifds': MD.TIFF_ID_SUBIFDS
     },
     
-    getTagsByPath: function(path, create) {
+    _getTagsByPath: function(path, create) {
         MD.check(path && path.startsWith('/'), 'Invalid path: ' + path);
         var components = path.split('/');
         var trunk = this.tree;
@@ -431,11 +429,11 @@ MD.Tiff.prototype = {
     },
     
     getTags: function(path) {
-        return this.getTagsByPath(path);
+        return this._getTagsByPath(path);
     },
     
     getTag: function(path, id) {
-        var tags = this.getTagsByPath(path);
+        var tags = this._getTagsByPath(path);
         if (tags) {
             for (var i = 0; i < tags.length; i++) {
                 if (tags[i].id == id) {
@@ -447,12 +445,12 @@ MD.Tiff.prototype = {
     },
     
     removeTag: function(path, id) {
-        var tags = this.getTagsByPath(path);
+        var tags = this._getTagsByPath(path);
         this._removeTag(tags, id);
     },
     
     addTag: function(path, tag) {
-        var tags = this.getTagsByPath(path, true);
+        var tags = this._getTagsByPath(path, true);
         MD.check(tags, 'Failed to get or create path: ' + path);
         this._removeTag(tags, tag.id);
         tags.push(tag);
