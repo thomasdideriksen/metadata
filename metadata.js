@@ -393,7 +393,6 @@ MD.Tiff.prototype = {
             lengthId: MD.TIFF_ID_TILEBYTECOUNTS
         }
     ],
-
     
     _SUBIFD_NAME_ID_MAPPING: {
         'exif': MD.TIFF_ID_EXIFIFD,
