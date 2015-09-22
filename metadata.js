@@ -31,6 +31,12 @@ MD.TIFF_ID_GPSIFD = 0x8825;
 MD.TIFF_ID_INTEROPERABILITYIFD = 0xA005;
 MD.TIFF_ID_SUBIFDS = 0x014A;
 MD.TIFF_ID_RICHTIFFIPTC = 0x83BB;
+MD.TIFF_ID_JPEGINTERCHANGEFORMAT = 0x0201;
+MD.TIFF_ID_JPEGINTERCHANGEFORMATLENGTH = 0x0202;
+MD.TIFF_ID_STRIPOFFSETS = 0x0111;
+MD.TIFF_ID_STRIPBYTECOUNTS = 0x0117;
+MD.TIFF_ID_TILEOFFSETS = 0x0144;
+MD.TIFF_ID_TILEBYTECOUNTS = 0x0145;
 
 MD.check = function(expr, msg) {
     if (!expr) {
@@ -177,22 +183,72 @@ MD.Jpeg.prototype = {
 }
 
 MD.Tiff = function(buffer) {
-    this.tree = (buffer) ? this._parse(buffer) : [];
+    this.tree = [];
+    this.data = [];
+    this._parse(buffer)
 }
 
 MD.Tiff.prototype = {
     constructor: MD.Tiff,
     
     _parse: function(buffer) {
-        var reader = new MD.BinaryReader(buffer, MD.LITTLE_ENDIAN);
-        switch (reader.read16u()) {
-            case MD.TIFF_LITTLE_ENDIAN: reader.endian = MD.LITTLE_ENDIAN; break;
-            case MD.TIFF_BIG_ENDIAN: reader.endian = MD.BIG_ENDIAN; break;
-            default: throw 'Invalid TIFF endian specifier';
+        if (buffer) {
+            var reader = new MD.BinaryReader(buffer, MD.LITTLE_ENDIAN);
+            switch (reader.read16u()) {
+                case MD.TIFF_LITTLE_ENDIAN: reader.endian = MD.LITTLE_ENDIAN; break;
+                case MD.TIFF_BIG_ENDIAN: reader.endian = MD.BIG_ENDIAN; break;
+                default: throw 'Invalid TIFF endian specifier';
+            }
+            MD.check(reader.read16u() == MD.TIFF_MAGIC, 'Invalid TIFF magic number');
+            reader.position = reader.read32u();
+            this.tree = this._parseTree(reader);
+            this.data = this._extractData(reader);
         }
-        MD.check(reader.read16u() == MD.TIFF_MAGIC, 'Invalid TIFF magic number');
-        reader.position = reader.read32u();
-        return this._parseTree(reader);
+    },
+    
+    _extractData: function(reader) {
+        var backupPos = reader.position;
+        var result = {};
+        var list = this.enumerate();
+        var lookup = {};
+        var currentPath = null;
+        for (var i = 0; i < list.length; i++) {
+            if (currentPath != list[i].path) {
+                currentPath = list[i].path;
+                lookup[currentPath] = {};
+            }
+            lookup[currentPath][list[i].tag.id] = list[i].tag;
+        }
+        for (var path in lookup) {
+            var tagLookup = lookup[path];
+            for (var i = 0; i < this._DATA_REGIONS.length; i++) {
+                var region = this._DATA_REGIONS[i];
+                if (region.positionId in tagLookup && region.lengthId in tagLookup) {
+                    var positionTag = tagLookup[region.positionId];
+                    var lengthTag = tagLookup[region.lengthId];
+                    MD.check(positionTag.type == MD.TIFF_TYPE_LONG, 'Invalid type for data position (' + positionTag.type + ')');
+                    MD.check(lengthTag.type == MD.TIFF_TYPE_LONG, 'Invalid type for data length (' + lengthTag.type + ')');
+                    var positions = (positionTag.data instanceof Array) ? positionTag.data : [positionTag.data];
+                    var lengths = (lengthTag.data instanceof Array) ? lengthTag.data : [lengthTag.data];
+                    MD.check(positions.length == lengths.length, 'Inconsistent position/length data');
+                    var data = [];
+                    for (var j = 0; j < positions.length; j++) {
+                        reader.position = positions[j];
+                        data.push(reader.read(lengths[j]));
+                    }
+                    if (!(path in result)) {
+                        result[path] = [];
+                    }
+                    result[path].push({
+                        data: data,
+                        positionTag: positionTag,
+                        lengthTag: lengthTag
+                    });
+                }
+            }
+        }
+        reader.position = backupPos;
+        return result;
     },
     
     _parseTree: function(reader) {
@@ -323,6 +379,23 @@ MD.Tiff.prototype = {
         };
         return result;
     },
+    
+    _DATA_REGIONS: [
+        {
+            positionId: MD.TIFF_ID_JPEGINTERCHANGEFORMAT,
+            lengthId: MD.TIFF_ID_JPEGINTERCHANGEFORMATLENGTH
+        },
+        {
+            positionId: MD.TIFF_ID_STRIPOFFSETS,
+            lengthId: MD.TIFF_ID_STRIPBYTECOUNTS
+
+        },
+        {
+            positionId: MD.TIFF_ID_TILEOFFSETS,
+            lengthId: MD.TIFF_ID_TILEBYTECOUNTS
+        }
+    ],
+
     
     _SUBIFD_NAME_ID_MAPPING: {
         'exif': MD.TIFF_ID_EXIFIFD,
