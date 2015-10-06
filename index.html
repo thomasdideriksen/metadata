@@ -159,6 +159,9 @@
                     var list = tiff.enumerate();                    
                     emitTagTable(list, document.getElementById('tagTable'));
                     emitDataTable(tiff.data, document.getElementById('dataTable'));
+                    
+                    var encoded = tiff.save(MD.LITTLE_ENDIAN);
+                    console.log(encoded);
                 },
                 function() {
                     throw 'Failed to fetch image';

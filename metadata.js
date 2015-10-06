@@ -59,8 +59,8 @@ MD.get = function(url, success, failure) {
             }
         }
     }
-    xhr.responseType = 'arraybuffer';
     xhr.open('GET', url, true);
+    xhr.responseType = 'arraybuffer';
     xhr.send();
 }
 
@@ -109,6 +109,69 @@ MD.BinaryReader.prototype = {
         var result = this.read(this.length - this.position);
         this.position = this.length;
         return result;
+    }
+}
+
+MD.BinaryWriter = function(endian, initialSize, chunkSize) {
+    this.length = 0;
+    this.position = 0;
+    this.endian = endian;
+    this._view;
+    this._chunkSize = chunkSize ? chunkSize : 1024 * 100; // Default: 100KB
+    if (initialSize) {
+        this._ensureLength(initialSize);
+    }
+}
+
+MD.BinaryWriter.prototype = {
+    constructor: MD.BinaryWriter,
+    
+    _growBuffer : function(length) {
+        var chunkedLength = Math.ceil(length / this._chunkSize) * this._chunkSize;
+        if (this._view) {
+            if (this._view.buffer.byteLength < chunkedLength) {
+                var buffer = new ArrayBuffer(chunkedLength);
+                new Uint8Array(buffer).set(_view.buffer);
+                this._view = new DataView(buffer);
+            }
+        } else {
+            this._view = new DataView(new ArrayBuffer(chunkedLength));
+        }
+    },
+    
+    getBuffer: function() {
+        return (this._view) ? this._view.buffer.slice(0, this.length) : undefined;
+    },
+    
+    writeGeneric: function(fn, subSize, subCount, count, value) {
+        var items = (count == 1) ? [value] : value;
+        MD.check(items.length == count, 'Invalid tag data size');
+        for (var i = 0; i < items.length; i++) {
+            var item = (items[i] instanceof Array) ? items[i] : [items[i]];
+            MD.check(item.length == subCount, 'Invalid tag data size');
+            for (var j = 0; j < item.length; j++) {
+                this._growBuffer(this.length + subSize);
+                this._view[fn](this.position, item[j], (this.endian == MD.LITTLE_ENDIAN));
+                this.length += subSize;
+                this.position += subSize;
+            }
+        }
+    },
+    
+    write8u:  function(val) { this.writeGeneric('setUint8', 1, 1, 1, val);   },
+    write8s:  function(val) { this.writeGeneric('setInt8', 1, 1, 1, val);    },
+    write16u: function(val) { this.writeGeneric('setUint16', 2, 1, 1, val);  },
+    write16s: function(val) { this.writeGeneric('setInt16', 2, 1, 1, val);   },
+    write32u: function(val) { this.writeGeneric('setUint32', 4, 1, 1, val);  },
+    write32s: function(val) { this.writeGeneric('setInt32', 4, 1, 1, val);   },
+    write32f: function(val) { this.writeGeneric('setFloat32', 4, 1, 1, val); },
+    write64f: function(val) { this.writeGeneric('setFloat64', 8, 1, 1, val); },
+    
+    write: function(buffer) {
+        this._growBuffer(this.length + buffer.byteLength);
+        this._view.buffer.set(buffer, this.postion);
+        this.length += buffer.byteLength;
+        this.position += buffer.byteLength;
     }
 }
 
@@ -199,6 +262,7 @@ MD.Tiff.prototype = {
                 case MD.TIFF_BIG_ENDIAN: reader.endian = MD.BIG_ENDIAN; break;
                 default: throw 'Invalid TIFF endian specifier';
             }
+            this._nativeEndian = reader.endian;
             MD.check(reader.read16u() == MD.TIFF_MAGIC, 'Invalid TIFF magic number');
             reader.position = reader.read32u();
             this.tree = this._parseTree(reader);
@@ -308,9 +372,9 @@ MD.Tiff.prototype = {
             case MD.TIFF_TYPE_SBYTE:
                 return reader.readGeneric('getInt8', 1, 1, count);
             case MD.TIFF_TYPE_SHORT:
-                return reader.readGeneric('getUint8', 2, 1, count);
+                return reader.readGeneric('getUint16', 2, 1, count);
             case MD.TIFF_TYPE_SSHORT:
-                return reader.readGeneric('getInt8', 2, 1, count);
+                return reader.readGeneric('getInt16', 2, 1, count);
             case MD.TIFF_TYPE_IFD:
             case MD.TIFF_TYPE_LONG:
                 return reader.readGeneric('getUint32', 4, 1, count);
@@ -530,5 +594,106 @@ MD.Tiff.prototype = {
         var list = [];
         this._enumerateRecursive(this.tree, list, '');
         return list;
+    },
+    
+    _computeCount: function(tag) {
+        switch (tag.type) {
+            case MD.TIFF_TYPE_RATIONAL:
+            case MD.TIFF_TYPE_SRATIONAL:
+                MD.check(tag.data instanceof Array, 'Invalid (S)RATIONAL data');
+                return (tag.data[0] instanceof Array) ? tag.data.length : 1;
+            case MD.TIFF_TYPE_ASCII:
+                MD.check(typeof tag.data === 'string', 'Invalid ASCII data');
+                return tag.data.length + 1; // Zero terminator
+            default:
+                return (tag.data instanceof Array) ? tag.data.length : 1;
+        }
+    },
+    
+    _writeTagData: function(writer, type, data, count) {
+        switch (type) {
+            case MD.TIFF_TYPE_UNDEFINED:
+            case MD.TIFF_TYPE_BYTE: 
+                writer.writeGeneric('setUint8', 1, 1, count, data);
+                break;
+            case MD.TIFF_TYPE_ASCII:
+                MD.check(typeof data === 'string', 'Invalid ASCII data');
+                MD.check(count == data.length + 1, 'Invalid ASCII count');
+                for (var i = 0; i < data.length; i++) {
+                    writer.write8u(data.charCodeAt(i));
+                }
+                writer.write8u(0); // Zero terminator
+                break;
+            case MD.TIFF_TYPE_SBYTE:
+                writer.writeGeneric('setInt8', 1, 1, count, data);
+                break;
+            case MD.TIFF_TYPE_SHORT:
+                writer.writeGeneric('setUint16', 2, 1, count, data);
+                break;
+            case MD.TIFF_TYPE_SSHORT:
+                writer.writeGeneric('setInt16', 2, 1, count, data);
+                break;
+            case MD.TIFF_TYPE_IFD:
+            case MD.TIFF_TYPE_LONG:
+                writer.writeGeneric('setUint32', 4, 1, count, data);
+                break;
+            case MD.TIFF_TYPE_SLONG: 
+                writer.writeGeneric('setInt32', 4, 1, count, data);
+                break;
+            case MD.TIFF_TYPE_FLOAT:
+                writer.writeGeneric('setFloat32', 4, 1, count, data);
+                break;
+            case MD.TIFF_TYPE_RATIONAL:
+                writer.writeGeneric('setUint32', 4, 2, count, data);
+                break;
+            case MD.TIFF_TYPE_SRATIONAL:
+                writer.writeGeneric('setInt32', 4, 2, count, data);
+                break;
+            case MD.TIFF_TYPE_DOUBLE:
+                writer.writeGeneric('setFloat32', 8, 1, count, data);
+                break;
+            default: 
+                throw 'Invalid TIFF type (' + type + ')';
+        }
+    },
+    
+    _saveTrunk: function(writer, trunk) {
+        for (var i = 0; i < trunk.length; i++) {
+            var ifd = trunk[i];
+            // TODO: Sort ifd.tags by id
+            writer.write16u(ifd.tags.length);
+            for (var j = 0; j < ifd.tags.length; j++) {
+                var tag = ifd.tags[j];
+                writer.write16u(tag.id);
+                writer.write16u(tag.type);
+                var count = this._computeCount(tag);
+                writer.write32u(count);
+                writer.write32u(0);
+                var nextPos = writer.position;
+                writer.position -= 4;
+                var size = this._getTypeSize(tag.type) * count;
+                if (size > 4) {
+                    // TODO
+                } else {
+                    this._writeTagData(writer, tag.type, tag.data, count);
+                }
+                writer.position = nextPos;
+            }
+            var offset = (i == trunk.length - 1) ? writer.position + 4 : 0;
+            writer.write32u(offset);
+        }
+    },
+    
+    save: function(endian) {
+        var writer = new MD.BinaryWriter(endian ? endian : this._nativeEndian);
+        switch (writer.endian) {
+            case MD.LITTLE_ENDIAN: writer.write16u(MD.TIFF_LITTLE_ENDIAN); break;
+            case MD.BIG_ENDIAN: writer.write16u(MD.TIFF_BIG_ENDIAN); break;
+            default: throw 'Invalid endian specifier (' + endian + ')';
+        }
+        writer.write16u(MD.TIFF_MAGIC);
+        writer.write32u(writer.position + 4);
+        this._saveTrunk(writer, this.tree);
+        return writer.getBuffer();
     }
 }
