@@ -38,6 +38,29 @@ MD.TIFF_ID_STRIPBYTECOUNTS = 0x0117;
 MD.TIFF_ID_TILEOFFSETS = 0x0144;
 MD.TIFF_ID_TILEBYTECOUNTS = 0x0145;
 
+MD.DATA_ID_PAIRS = [
+    {
+        positionId: MD.TIFF_ID_JPEGINTERCHANGEFORMAT,
+        lengthId: MD.TIFF_ID_JPEGINTERCHANGEFORMATLENGTH
+    },
+    {
+        positionId: MD.TIFF_ID_STRIPOFFSETS,
+        lengthId: MD.TIFF_ID_STRIPBYTECOUNTS
+
+    },
+    {
+        positionId: MD.TIFF_ID_TILEOFFSETS,
+        lengthId: MD.TIFF_ID_TILEBYTECOUNTS
+    }
+];
+
+MD.SUBIFD_NAME_ID_MAPPING = {
+    'exif': MD.TIFF_ID_EXIFIFD,
+    'gps': MD.TIFF_ID_GPSIFD,
+    'interoperability': MD.TIFF_ID_INTEROPERABILITYIFD,
+    'subifds': MD.TIFF_ID_SUBIFDS
+};
+
 MD.check = function(expr, msg) {
     if (!expr) {
         throw msg;
@@ -112,35 +135,17 @@ MD.BinaryReader.prototype = {
     }
 }
 
-MD.BinaryWriter = function(endian, initialSize, chunkSize) {
-    this.length = 0;
+MD.BinaryWriter = function(buffer, endian) {
     this.position = 0;
     this.endian = endian;
-    this._view;
-    this._chunkSize = chunkSize ? chunkSize : 1024 * 100; // Default: 100KB
-    if (initialSize) {
-        this._ensureLength(initialSize);
-    }
+    this._view = new DataView(buffer);
 }
 
 MD.BinaryWriter.prototype = {
     constructor: MD.BinaryWriter,
-    
-    _growBuffer : function(length) {
-        var chunkedLength = Math.ceil(length / this._chunkSize) * this._chunkSize;
-        if (this._view) {
-            if (this._view.buffer.byteLength < chunkedLength) {
-                var buffer = new ArrayBuffer(chunkedLength);
-                new Uint8Array(buffer).set(_view.buffer);
-                this._view = new DataView(buffer);
-            }
-        } else {
-            this._view = new DataView(new ArrayBuffer(chunkedLength));
-        }
-    },
-    
+        
     getBuffer: function() {
-        return (this._view) ? this._view.buffer.slice(0, this.length) : undefined;
+        return (this._view) ? this._view.buffer : undefined;
     },
     
     writeGeneric: function(fn, subSize, subCount, count, value) {
@@ -150,9 +155,7 @@ MD.BinaryWriter.prototype = {
             var item = (items[i] instanceof Array) ? items[i] : [items[i]];
             MD.check(item.length == subCount, 'Invalid tag data size');
             for (var j = 0; j < item.length; j++) {
-                this._growBuffer(this.length + subSize);
                 this._view[fn](this.position, item[j], (this.endian == MD.LITTLE_ENDIAN));
-                this.length += subSize;
                 this.position += subSize;
             }
         }
@@ -168,9 +171,7 @@ MD.BinaryWriter.prototype = {
     write64f: function(val) { this.writeGeneric('setFloat64', 8, 1, 1, val); },
     
     write: function(buffer) {
-        this._growBuffer(this.length + buffer.byteLength);
         this._view.buffer.set(buffer, this.postion);
-        this.length += buffer.byteLength;
         this.position += buffer.byteLength;
     }
 }
@@ -247,7 +248,7 @@ MD.Jpeg.prototype = {
 
 MD.Tiff = function(buffer) {
     this.tree = [];
-    this.data = [];
+    this._nativeEndian = MD.LITTLE_ENDIAN;
     this._parse(buffer)
 }
 
@@ -266,51 +267,7 @@ MD.Tiff.prototype = {
             MD.check(reader.read16u() == MD.TIFF_MAGIC, 'Invalid TIFF magic number');
             reader.position = reader.read32u();
             this.tree = this._parseTree(reader);
-            this.data = this._extractData(reader);
         }
-    },
-    
-    _extractData: function(reader) {
-        var backupPos = reader.position;
-        var result = {};
-        var list = this.enumerate();
-        var lookup = {};
-        for (var i = 0; i < list.length; i++) {
-            if (!(list[i].path in lookup)) {
-                lookup[list[i].path] = {};
-            }
-            lookup[list[i].path][list[i].tag.id] = list[i].tag;
-        }
-        for (var path in lookup) {
-            var tagLookup = lookup[path];
-            for (var i = 0; i < this._DATA_REGIONS.length; i++) {
-                var region = this._DATA_REGIONS[i];
-                if (region.positionId in tagLookup && region.lengthId in tagLookup) {
-                    var positionTag = tagLookup[region.positionId];
-                    var lengthTag = tagLookup[region.lengthId];
-                    MD.check(positionTag.type == MD.TIFF_TYPE_LONG, 'Invalid type for data position (' + positionTag.type + ')');
-                    MD.check(lengthTag.type == MD.TIFF_TYPE_LONG, 'Invalid type for data length (' + lengthTag.type + ')');
-                    var positions = (positionTag.data instanceof Array) ? positionTag.data : [positionTag.data];
-                    var lengths = (lengthTag.data instanceof Array) ? lengthTag.data : [lengthTag.data];
-                    MD.check(positions.length == lengths.length, 'Inconsistent position/length data');
-                    var data = [];
-                    for (var j = 0; j < positions.length; j++) {
-                        reader.position = positions[j];
-                        data.push(reader.read(lengths[j]));
-                    }
-                    if (!(path in result)) {
-                        result[path] = [];
-                    }
-                    result[path].push({
-                        data: data,
-                        positionTag: positionTag,
-                        lengthTag: lengthTag
-                    });
-                }
-            }
-        }
-        reader.position = backupPos;
-        return result;
     },
     
     _parseTree: function(reader) {
@@ -320,6 +277,7 @@ MD.Tiff.prototype = {
                 tags: [],
                 branches: {}
             };
+            var tagsById = {};
             var tagCount = reader.read16u();
             for (var i = 0; i < tagCount; i++) {
                 var id = reader.read16u();
@@ -336,6 +294,7 @@ MD.Tiff.prototype = {
                     type: type,
                     data: this._parsePayload(payload, reader.endian, type, count)
                 };
+                tagsById[tag.id] = tag;
                 ifd.tags.push(tag);
                 if (this._isSubIFD(tag.id, tag.type)) {
                     MD.check(tag.type == MD.TIFF_TYPE_LONG || tag.type == MD.TIFF_TYPE_IFD, 'Invalid tag type for sub IFD (' + tag.type + ')');
@@ -349,8 +308,34 @@ MD.Tiff.prototype = {
                 }
                 reader.position = nextPosition;
             }
-            trunk.push(ifd);
             var offset = reader.read32u();
+            for (var i = 0; i < MD.DATA_ID_PAIRS.length; i++) {
+                var pair = MD.DATA_ID_PAIRS[i];
+                var tagPos = tagsById[pair.positionId];
+                var tagLen = tagsById[pair.lengthId];
+                MD.check((tagPos && tagLen) || (!tagPos && !tagLen), 'Missing one ID in data ID pair');
+                if (tagPos && tagLen) {
+                    MD.check(tagPos.type == MD.TIFF_TYPE_LONG, 'Invalid tag type for position component');
+                    MD.check(tagLen.type == MD.TIFF_TYPE_LONG, 'Invalid tag type for length component');
+                    var positions = (tagPos.data instanceof Array) ? tagPos.data : [tagPos.data];
+                    var lengths = (tagLen.data instanceof Array) ? tagLen.data : [tagLen.data];
+                    MD.check(positions.length == lengths.length, 'Inconsistent data pair list length');
+                    var dataList = [];
+                    for (var j = 0; j < positions.length; j++) {
+                        reader.position = positions[j];
+                        dataList.push(reader.read(lengths[j]));
+                    }
+                    if (!ifd.data) {
+                        ifd.data = [];
+                    }
+                    ifd.data.push({
+                        positionId: pair.positionId,
+                        lengthId: pair.lengthId,
+                        data: dataList 
+                    });
+                } 
+            }
+            trunk.push(ifd);
             if (offset == 0) {
                 break;
             }
@@ -442,29 +427,6 @@ MD.Tiff.prototype = {
         return result;
     },
     
-    _DATA_REGIONS: [
-        {
-            positionId: MD.TIFF_ID_JPEGINTERCHANGEFORMAT,
-            lengthId: MD.TIFF_ID_JPEGINTERCHANGEFORMATLENGTH
-        },
-        {
-            positionId: MD.TIFF_ID_STRIPOFFSETS,
-            lengthId: MD.TIFF_ID_STRIPBYTECOUNTS
-
-        },
-        {
-            positionId: MD.TIFF_ID_TILEOFFSETS,
-            lengthId: MD.TIFF_ID_TILEBYTECOUNTS
-        }
-    ],
-    
-    _SUBIFD_NAME_ID_MAPPING: {
-        'exif': MD.TIFF_ID_EXIFIFD,
-        'gps': MD.TIFF_ID_GPSIFD,
-        'interoperability': MD.TIFF_ID_INTEROPERABILITYIFD,
-        'subifds': MD.TIFF_ID_SUBIFDS
-    },
-    
     _getTagsByPath: function(path, create) {
         MD.check(path && path.startsWith('/'), 'Invalid path: ' + path);
         var components = path.split('/');
@@ -491,8 +453,8 @@ MD.Tiff.prototype = {
                 trunk = null;
             } else {
                 var id;
-                if (data.name in this._SUBIFD_NAME_ID_MAPPING) {
-                    id = this._SUBIFD_NAME_ID_MAPPING[data.name];
+                if (data.name in MD.SUBIFD_NAME_ID_MAPPING) {
+                    id = MD.SUBIFD_NAME_ID_MAPPING[data.name];
                 } else {
                     id = parseInt(data.name);
                     MD.check(!isNaN(id), 'Invalid branch in path: ' + data.name);
@@ -534,8 +496,8 @@ MD.Tiff.prototype = {
             for (var j in ifd.branches) {
                 var subTrunks = ifd.branches[j];
                 var branchName = j.toString();
-                for (var name in this._SUBIFD_NAME_ID_MAPPING) {
-                    if (this._SUBIFD_NAME_ID_MAPPING[name] == j) {
+                for (var name in MD.SUBIFD_NAME_ID_MAPPING) {
+                    if (MD.SUBIFD_NAME_ID_MAPPING[name] == j) {
                         branchName = name;
                         break;
                     }
@@ -611,6 +573,7 @@ MD.Tiff.prototype = {
     },
     
     _writeTagData: function(writer, type, data, count) {
+        var beforePosition = writer.position;
         switch (type) {
             case MD.TIFF_TYPE_UNDEFINED:
             case MD.TIFF_TYPE_BYTE: 
@@ -655,45 +618,100 @@ MD.Tiff.prototype = {
             default: 
                 throw 'Invalid TIFF type (' + type + ')';
         }
+        var writtenBytes = writer.position - beforePosition;
+        if (writtenBytes % 2 == 1) {
+            writer.write8u(0); // Note: Padding
+        }
     },
     
-    _saveTrunk: function(writer, trunk) {
+    _saveTrunk: function(layoutWriter, payloadWriter, trunk) {
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
             // TODO: Sort ifd.tags by id
-            writer.write16u(ifd.tags.length);
+            layoutWriter.write16u(ifd.tags.length);
             for (var j = 0; j < ifd.tags.length; j++) {
                 var tag = ifd.tags[j];
-                writer.write16u(tag.id);
-                writer.write16u(tag.type);
+                layoutWriter.write16u(tag.id);
+                layoutWriter.write16u(tag.type);
                 var count = this._computeCount(tag);
-                writer.write32u(count);
-                writer.write32u(0);
-                var nextPos = writer.position;
-                writer.position -= 4;
+                layoutWriter.write32u(count);
+                layoutWriter.write32u(0);
+                var nextPos = layoutWriter.position;
+                layoutWriter.position -= 4;
                 var size = this._getTypeSize(tag.type) * count;
                 if (size > 4) {
-                    // TODO
+                    layoutWriter.write32u(payloadWriter.position);
+                    this._writeTagData(payloadWriter, tag.type, tag.data, count);
                 } else {
-                    this._writeTagData(writer, tag.type, tag.data, count);
+                    this._writeTagData(layoutWriter, tag.type, tag.data, count);
                 }
-                writer.position = nextPos;
+                layoutWriter.position = nextPos;
             }
-            var offset = (i == trunk.length - 1) ? writer.position + 4 : 0;
-            writer.write32u(offset);
+            var offset = (i == trunk.length - 1) ? layoutWriter.position + 4 : 0;
+            layoutWriter.write32u(offset);
+        }
+    },
+    
+    _computeSizes: function() {
+        var sizes = {
+            layoutSize: 8,
+            payloadSize: 0
+        }
+        this._computeSizesRecursive(this.tree, sizes);
+        MD.check(sizes.layoutSize % 2 == 0, 'Invalid file structure size');
+        MD.check(sizes.payloadSize % 2 == 0, 'Invalid file structure size');
+        return sizes;
+    },
+    
+    _computeSizesRecursive: function(trunk, sizes) {
+        for (var i = 0; i < trunk.length; i++) {
+            var ifd = trunk[i];
+            var tagsById = {};
+            sizes.layoutSize += 2;
+            for (var j = 0; j < ifd.tags.length; j++) {
+                sizes.layoutSize += 12;
+                var tag = ifd.tags[j];
+                tagsById[tag.id] = tag;
+                var dataSize = this._computeCount(tag) * this._getTypeSize(tag.type);
+                if (dataSize > 4) {
+                    sizes.payloadSize += dataSize + (dataSize % 2); // Note: Padding
+                }
+            }
+            sizes.layoutSize += 4;
+            if (ifd.data) {
+                for (var j = 0; j < ifd.data.length; j++) {
+                    for (var k = 0; k < ifd.data[j].data.length; k++) {
+                        var dataSize = ifd.data[j].data[k].byteLength;
+                        sizes.payloadSize += dataSize + (dataSize % 2); // Note: Padding
+                    }
+                }
+            }
+            for (var j in ifd.branches) {
+                var subTrunks = ifd.branches[j];
+                for (var k = 0; k < subTrunks.length; k++) {
+                    this._computeSizesRecursive(subTrunks[k], sizes);
+                }
+            }
         }
     },
     
     save: function(endian) {
-        var writer = new MD.BinaryWriter(endian ? endian : this._nativeEndian);
-        switch (writer.endian) {
-            case MD.LITTLE_ENDIAN: writer.write16u(MD.TIFF_LITTLE_ENDIAN); break;
-            case MD.BIG_ENDIAN: writer.write16u(MD.TIFF_BIG_ENDIAN); break;
+        var sizes = this._computeSizes();
+        var buffer = new ArrayBuffer(sizes.layoutSize + sizes.payloadSize);
+        
+        var endian = endian ? endian : this._nativeEndian;
+        var layoutWriter = new MD.BinaryWriter(buffer, endian);
+        var payloadWriter = new MD.BinaryWriter(buffer, endian);
+        payloadWriter.position = sizes.layoutSize;
+        
+        switch (layoutWriter.endian) {
+            case MD.LITTLE_ENDIAN: layoutWriter.write16u(MD.TIFF_LITTLE_ENDIAN); break;
+            case MD.BIG_ENDIAN: layoutWriter.write16u(MD.TIFF_BIG_ENDIAN); break;
             default: throw 'Invalid endian specifier (' + endian + ')';
         }
-        writer.write16u(MD.TIFF_MAGIC);
-        writer.write32u(writer.position + 4);
-        this._saveTrunk(writer, this.tree);
-        return writer.getBuffer();
+        layoutWriter.write16u(MD.TIFF_MAGIC);
+        layoutWriter.write32u(layoutWriter.position + 4);
+        this._saveTrunk(layoutWriter, payloadWriter, this.tree);
+        return buffer;
     }
 }
