@@ -625,12 +625,26 @@ MD.Tiff.prototype = {
     },
     
     _saveTrunk: function(layoutWriter, payloadWriter, trunk) {
+        var ifdPointers = {};
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
-            // TODO: Sort ifd.tags by id
+            ifd.tags.sort(function(a, b) {
+                MD.check(a.id != b.id, 'Duplicate tag IDs (' + a.id + ')');
+                return (a.id - b.id);
+            });
             layoutWriter.write16u(ifd.tags.length);
             for (var j = 0; j < ifd.tags.length; j++) {
                 var tag = ifd.tags[j];
+                var isSubIfd = this._isSubIFD(tag.id, tag.type);
+                if (isSubIfd) {
+                    if (!(tag.id in ifd.branches)) {
+                        continue;
+                    }
+                    var dataArray = (tag.data instanceof Array) ? tag.data : [tag.data];
+                    MD.check(ifd.branches[tag.id].length == dataArray.length, 'Inconsistent number of SUB ifd pointers');
+                    MD.check(tag.type == MD.TIFF_TYPE_LONG || 
+                             tag.type == MD.TIFF_TYPE_IFD, 'Invalid sub IFD pointer type');
+                }
                 layoutWriter.write16u(tag.id);
                 layoutWriter.write16u(tag.type);
                 var count = this._computeCount(tag);
@@ -640,15 +654,29 @@ MD.Tiff.prototype = {
                 layoutWriter.position -= 4;
                 var size = this._getTypeSize(tag.type) * count;
                 if (size > 4) {
+                    // TODO: Populate ifdPointers
                     layoutWriter.write32u(payloadWriter.position);
                     this._writeTagData(payloadWriter, tag.type, tag.data, count);
                 } else {
+                    // TODO: Populate ifdPointers
                     this._writeTagData(layoutWriter, tag.type, tag.data, count);
                 }
                 layoutWriter.position = nextPos;
             }
             var offset = (i == trunk.length - 1) ? layoutWriter.position + 4 : 0;
             layoutWriter.write32u(offset);
+        }
+        for (var i = 0; i < trunk.length; i++) {
+            var ifd = trunk[i];
+            for (var j in ifd.branches) {
+                if (ifdPointers[i] && ifdPointers[i][j]) {
+                    var subTrunks = ifd.branches[j];
+                    for (var k = 0; k < subTrunks.length; k++) {
+                        // TODO: Overwrite positions at ifdPointers
+                        // TODO: this._saveTrunk
+                    }
+                }
+            }
         }
     },
     
@@ -666,12 +694,10 @@ MD.Tiff.prototype = {
     _computeSizesRecursive: function(trunk, sizes) {
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
-            var tagsById = {};
             sizes.layoutSize += 2;
             for (var j = 0; j < ifd.tags.length; j++) {
                 sizes.layoutSize += 12;
                 var tag = ifd.tags[j];
-                tagsById[tag.id] = tag;
                 var dataSize = this._computeCount(tag) * this._getTypeSize(tag.type);
                 if (dataSize > 4) {
                     sizes.payloadSize += dataSize + (dataSize % 2); // Note: Padding
