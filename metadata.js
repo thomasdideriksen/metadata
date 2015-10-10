@@ -138,15 +138,12 @@ MD.BinaryReader.prototype = {
 MD.BinaryWriter = function(buffer, endian) {
     this.position = 0;
     this.endian = endian;
+    this.buffer = buffer;
     this._view = new DataView(buffer);
 }
 
 MD.BinaryWriter.prototype = {
     constructor: MD.BinaryWriter,
-        
-    getBuffer: function() {
-        return (this._view) ? this._view.buffer : undefined;
-    },
     
     writeGeneric: function(fn, subSize, subCount, count, value) {
         var items = (count == 1) ? [value] : value;
@@ -627,6 +624,7 @@ MD.Tiff.prototype = {
     _saveTrunk: function(layoutWriter, payloadWriter, trunk) {
         var ifdPointers = {};
         for (var i = 0; i < trunk.length; i++) {
+            ifdPointers[i] = {};
             var ifd = trunk[i];
             ifd.tags.sort(function(a, b) {
                 MD.check(a.id != b.id, 'Duplicate tag IDs (' + a.id + ')');
@@ -635,6 +633,8 @@ MD.Tiff.prototype = {
             layoutWriter.write16u(ifd.tags.length);
             for (var j = 0; j < ifd.tags.length; j++) {
                 var tag = ifd.tags[j];
+                var count = this._computeCount(tag);
+                var size = this._getTypeSize(tag.type) * count;
                 var isSubIfd = this._isSubIFD(tag.id, tag.type);
                 if (isSubIfd) {
                     if (!(tag.id in ifd.branches)) {
@@ -644,21 +644,22 @@ MD.Tiff.prototype = {
                     MD.check(ifd.branches[tag.id].length == dataArray.length, 'Inconsistent number of SUB ifd pointers');
                     MD.check(tag.type == MD.TIFF_TYPE_LONG || 
                              tag.type == MD.TIFF_TYPE_IFD, 'Invalid sub IFD pointer type');
+                    MD.check(!(tag.id in ifdPointers[i]), 'Duplicate sub IFD tags');
+                    ifdPointers[i][tag.id] = {
+                        position: (size > 4) ? payloadWriter.position : (layoutWriter.position + 8),
+                        count: count
+                    };
                 }
                 layoutWriter.write16u(tag.id);
                 layoutWriter.write16u(tag.type);
-                var count = this._computeCount(tag);
                 layoutWriter.write32u(count);
                 layoutWriter.write32u(0);
                 var nextPos = layoutWriter.position;
                 layoutWriter.position -= 4;
-                var size = this._getTypeSize(tag.type) * count;
                 if (size > 4) {
-                    // TODO: Populate ifdPointers
                     layoutWriter.write32u(payloadWriter.position);
                     this._writeTagData(payloadWriter, tag.type, tag.data, count);
                 } else {
-                    // TODO: Populate ifdPointers
                     this._writeTagData(layoutWriter, tag.type, tag.data, count);
                 }
                 layoutWriter.position = nextPos;
@@ -669,11 +670,15 @@ MD.Tiff.prototype = {
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
             for (var j in ifd.branches) {
-                if (ifdPointers[i] && ifdPointers[i][j]) {
-                    var subTrunks = ifd.branches[j];
+                var subTrunks = ifd.branches[j];
+                var pointer = ifdPointers[i][j];
+                if (pointer) {
+                    MD.check(pointer.count == subTrunks.length, 'Inconsistent number of sub IFDs');
+                    var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
+                    writer.position = pointer.position;
                     for (var k = 0; k < subTrunks.length; k++) {
-                        // TODO: Overwrite positions at ifdPointers
-                        // TODO: this._saveTrunk
+                        writer.write32u(layoutWriter.position);
+                        this._saveTrunk(layoutWriter, payloadWriter, subTrunks[k]);
                     }
                 }
             }
