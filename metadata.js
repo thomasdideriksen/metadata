@@ -167,9 +167,10 @@ MD.BinaryWriter.prototype = {
     write32f: function(val) { this.writeGeneric('setFloat32', 4, 1, 1, val); },
     write64f: function(val) { this.writeGeneric('setFloat64', 8, 1, 1, val); },
     
-    write: function(buffer) {
-        new Uint8Array(this._view.buffer).set(buffer, this.postion);
-        this.position += buffer.byteLength;
+    write: function(buf) {
+        var u8 = new Uint8Array(this._view.buffer);
+        u8.set(new Uint8Array(buf), this.position);
+        this.position += buf.byteLength;
     }
 }
 

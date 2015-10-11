@@ -146,7 +146,7 @@
                 }
             }
         
-            var file = 'im.jpg';
+            var file = 'im.tif';
             MD.get(file, 
                 function(buffer) {
                     var tiffBuffer = null;
@@ -165,7 +165,7 @@
                     console.log(encoded);
                     
                     var blob = new Blob([encoded], {type: "application/octet-stream"});
-                    saveAs(blob, "test.bin");
+                    saveAs(blob, "test.tif");
                 },
                 function() {
                     throw 'Failed to fetch image';
