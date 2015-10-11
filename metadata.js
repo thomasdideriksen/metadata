@@ -299,7 +299,7 @@ MD.Jpeg.prototype = {
 }
 
 MD.Tiff = function(buffer) {
-    this.tree = [];
+    this._tree = [];
     this._nativeEndian = MD.LITTLE_ENDIAN;
     this._parse(buffer)
 }
@@ -318,7 +318,7 @@ MD.Tiff.prototype = {
             this._nativeEndian = reader.endian;
             MD.check(reader.read16u() == MD.TIFF_MAGIC, 'Invalid TIFF magic number');
             reader.position = reader.read32u();
-            this.tree = this._parseTree(reader);
+            this._tree = this._parseTree(reader);
         }
     },
     
@@ -486,7 +486,7 @@ MD.Tiff.prototype = {
     _getTagsByPath: function(path, create) {
         MD.check(path && path.startsWith('/'), 'Invalid path: ' + path);
         var components = path.split('/');
-        var trunk = this.tree;
+        var trunk = this._tree;
         var ifd = null;
         for (var i = 1; i < components.length; i++) {
             var component = components[i].trim().toLowerCase();
@@ -610,7 +610,7 @@ MD.Tiff.prototype = {
     
     enumerate: function() {
         var list = [];
-        this._enumerateRecursive(this.tree, list, '');
+        this._enumerateRecursive(this._tree, list, '');
         return list;
     },
     
@@ -803,7 +803,7 @@ MD.Tiff.prototype = {
             layoutSize: 8,
             payloadSize: 0
         }
-        this._computeSizesRecursive(this.tree, sizes);
+        this._computeSizesRecursive(this._tree, sizes);
         MD.check(sizes.layoutSize % 2 == 0, 'Invalid file structure size');
         MD.check(sizes.payloadSize % 2 == 0, 'Invalid file structure size');
         return sizes;
@@ -855,7 +855,7 @@ MD.Tiff.prototype = {
         }
         layoutWriter.write16u(MD.TIFF_MAGIC);
         layoutWriter.write32u(layoutWriter.position + 4);
-        this._saveTrunk(layoutWriter, payloadWriter, this.tree);
+        this._saveTrunk(layoutWriter, payloadWriter, this._tree);
         return buffer;
     }
 }

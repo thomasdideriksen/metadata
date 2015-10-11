@@ -162,8 +162,12 @@
                     emitTagTable(list, document.getElementById('tagTable'));
                     emitDataTable(tiff.data, document.getElementById('dataTable'));
                     
+                    tiff.addTag('/ifd[0]', {id: 0xff00, type: MD.TIFF_TYPE_ASCII, data: 'Thomas Lund Dideriksen'});
+                    tiff.addTag('/ifd[1]', {id: 0xff00, type: MD.TIFF_TYPE_ASCII, data: 'Another test'});
+                    
                     var encoded = tiff.save(MD.LITTLE_ENDIAN);
                     var dataToSave = encoded;
+                    
                     
                     if (file.endsWith('.jpg')) {
                         jpeg.setExifBuffer(encoded);
