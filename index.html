@@ -8,6 +8,7 @@
         <meta charset='UTF-8'>
         <script src='metadata.js'></script> 
         <script src='base64.js'></script> 
+        <script src='FileSaver.min.js'></script>
         <style>
             html {
                 margin: 0px;
@@ -162,6 +163,9 @@
                     
                     var encoded = tiff.save(MD.LITTLE_ENDIAN);
                     console.log(encoded);
+                    
+                    var blob = new Blob([encoded], {type: "application/octet-stream"});
+                    saveAs(blob, "test.bin");
                 },
                 function() {
                     throw 'Failed to fetch image';
