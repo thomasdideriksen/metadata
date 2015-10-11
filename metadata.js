@@ -168,7 +168,7 @@ MD.BinaryWriter.prototype = {
     write64f: function(val) { this.writeGeneric('setFloat64', 8, 1, 1, val); },
     
     write: function(buffer) {
-        this._view.buffer.set(buffer, this.postion);
+        new Uint8Array(this._view.buffer).set(buffer, this.postion);
         this.position += buffer.byteLength;
     }
 }
@@ -293,7 +293,7 @@ MD.Tiff.prototype = {
                 };
                 tagsById[tag.id] = tag;
                 ifd.tags.push(tag);
-                if (this._isSubIfd(tag.id, tag.type)) {
+                if (this._isSubIfd(tag)) {
                     MD.check(tag.type == MD.TIFF_TYPE_LONG || tag.type == MD.TIFF_TYPE_IFD, 'Invalid tag type for sub IFD (' + tag.type + ')');
                     MD.check(!(tag.id in ifd.branches), 'Multiple sub IFDs with same parent ID (' + tag.id + ')');
                     ifd.branches[tag.id] = [];
@@ -306,7 +306,7 @@ MD.Tiff.prototype = {
                 reader.position = nextPosition;
             }
             var offset = reader.read32u();
-            ifd.data = this._extractDataPairs(reader, tagsById);
+            ifd.data = this._extractData(reader, tagsById);
             trunk.push(ifd);
             if (offset == 0) {
                 break;
@@ -316,7 +316,7 @@ MD.Tiff.prototype = {
         return trunk;
     },
     
-    _extractDataPairs(reader, tagsById) {
+    _extractData(reader, tagsById) {
         var result = [];
         for (var i = 0; i < MD.DATA_ID_PAIRS.length; i++) {
             var pair = MD.DATA_ID_PAIRS[i];
@@ -325,7 +325,7 @@ MD.Tiff.prototype = {
             MD.check((tagPos && tagLen) || (!tagPos && !tagLen), 'Missing one tag in data tag-pair');
             if (tagPos && tagLen) {
                 MD.check(tagPos.type == MD.TIFF_TYPE_LONG, 'Invalid tag type for position tag');
-                MD.check(tagLen.type == MD.TIFF_TYPE_LONG, 'Invalid tag type for length tag');
+                MD.check(tagLen.type == MD.TIFF_TYPE_LONG || tagLen.type == MD.TIFF_TYPE_SHORT || tagLen.type == MD.TIFF_TYPE_BYTE, 'Invalid tag type for length tag');
                 var positions = (tagPos.data instanceof Array) ? tagPos.data : [tagPos.data];
                 var lengths = (tagLen.data instanceof Array) ? tagLen.data : [tagLen.data];
                 MD.check(positions.length == lengths.length, 'Inconsistent data pair list length');
@@ -378,16 +378,16 @@ MD.Tiff.prototype = {
         }
     },
     
-    _isSubIfd: function(id, type) {
-        if (type == MD.TIFF_TYPE_IFD) {
+    _isSubIfd: function(tag) {
+        if (tag.type == MD.TIFF_TYPE_IFD) {
             return true;
         }
-        switch (id) {
+        switch (tag.id) {
             case MD.TIFF_ID_EXIFIFD:
             case MD.TIFF_ID_GPSIFD:
             case MD.TIFF_ID_INTEROPERABILITYIFD:
             case MD.TIFF_ID_SUBIFDS:
-                MD.check(type == MD.TIFF_TYPE_LONG, 'Invalid sub IFD data type');
+                MD.check(tag.type == MD.TIFF_TYPE_LONG, 'Invalid sub IFD data type');
                 return true;
             default: 
                 return false;
@@ -630,7 +630,7 @@ MD.Tiff.prototype = {
             var ifd = trunk[i];
             for (var j in ifd.branches) {
                 var dataOffset = dataOffsets[i][j];
-                if (dataOffset && this._isSubIfd(dataOffset.tag.id, dataOffset.tag.type)) {
+                if (dataOffset && this._isSubIfd(dataOffset.tag)) {
                     var subTrunks = ifd.branches[j];
                     MD.check(this._computeCount(dataOffset.tag) == subTrunks.length, 'Inconsistent number of sub IFDs');
                     var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
@@ -647,7 +647,28 @@ MD.Tiff.prototype = {
     _saveData: function(layoutWriter, payloadWriter, trunk, dataOffsets) {
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
-            // TODO
+            if (ifd.data) {
+                for (var j = 0; j < ifd.data.length; j++) {
+                    var chunk = ifd.data[j];
+                    var offsetLen = dataOffsets[i][chunk.lengthId];
+                    var offsetPos = dataOffsets[i][chunk.positionId];
+                    if (offsetLen && offsetPos) {
+                        var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
+                        writer.position = offsetLen.offset;
+                        for (var k = 0; k < chunk.data.length; k++) {
+                            writer.write32u(chunk.data[k].byteLength)
+                        }
+                        writer.position = offsetPos.offset;
+                        for (var k = 0; k < chunk.data.length; k++) {
+                            writer.write32u(payloadWriter.position);
+                            payloadWriter.write(chunk.data[k]);
+                            if (chunk.data[k].byteLength % 2 == 1) {
+                                payloadWriter.write8u(0); // Padding
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     
@@ -681,7 +702,7 @@ MD.Tiff.prototype = {
             var prunedTags = [];
             for (var j in  tagsById) {
                 var tag = tagsById[j];
-                if (this._isSubIfd(tag.id, tag.type) && !(tag.id in ifd.branches)) {
+                if (this._isSubIfd(tag) && !(tag.id in ifd.branches)) {
                     continue;
                 }
                 if (this._isBrokenPair(tag.id, tagsById)) {
