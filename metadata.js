@@ -6,11 +6,13 @@ MD.BIG_ENDIAN = 1;
 MD.JPEG_MARKER_SOI = 0xd8;
 MD.JPEG_MARKER_APP0 = 0xe0;
 MD.JPEG_MARKER_APP1 = 0xe1;
+MD.JPEG_MARKER_APP2 = 0xe2;
 MD.JPEG_MARKER_SOS = 0xda;
 
 MD.JPEG_HEADER_EXIF = [0x45, 0x78, 0x69, 0x66, 0x0, 0x0];
 MD.JPEG_HEADER_JFIF = [0x4A, 0x46, 0x49, 0x46, 0x0];
 MD.JPEG_HEADER_JFXX = [0x4A, 0x46, 0x49, 0x46, 0x0];
+MD.JPEG_HEADER_ICCPROFILE = [0x49, 0x43, 0x43, 0x5F, 0x50, 0x52, 0x4F, 0x46, 0x49, 0x4C, 0x45, 0x0];
 
 MD.TIFF_LITTLE_ENDIAN = 0x4949;
 MD.TIFF_BIG_ENDIAN = 0x4d4d;
@@ -269,6 +271,37 @@ MD.Jpeg.prototype = {
             data: segmentData
         }
         this._segments.unshift(segment);
+    },
+    
+    getIccProfile: function() {
+        var iccSegments = this._findSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
+        if (iccSegments.length == 0) {
+            return undefined;
+        }
+        var size = 0;
+        for (var i = 0; i < iccSegments.length; i++) {
+            var iccSegment = iccSegments[i];
+            size += (iccSegment.data.byteLength - MD.JPEG_HEADER_ICCPROFILE.length - 2);
+            var reader = new MD.BinaryReader(iccSegment.data, MD.LITTLE_ENDIAN);
+            reader.position = MD.JPEG_HEADER_ICCPROFILE.length;
+            var current = reader.read8u();
+            var total = reader.read8u();
+            MD.check(current == (i + 1), 'Invalid ICC sequence number');
+            MD.check(total == iccSegments.length, 'Invalid ICC segment count');
+        }
+        var buffer = new ArrayBuffer(size);
+        var writer = new MD.BinaryWriter(buffer, MD.LITTLE_ENDIAN);
+        for (var i = 0; i < iccSegments.length; i++) {
+            var iccSegment = iccSegments[i];
+            var reader = new MD.BinaryReader(iccSegment.data, MD.LITTLE_ENDIAN);
+            reader.position = MD.JPEG_HEADER_ICCPROFILE.length + 2;
+            writer.write(reader.readRemaining());
+        }
+        return buffer;
+    },
+    
+    setIccProfile: function(buffer) {
+        this._removeSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
     },
     
     save: function() {

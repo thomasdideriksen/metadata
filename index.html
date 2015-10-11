@@ -154,6 +154,11 @@
                     if (file.endsWith('.jpg')) {
                         jpeg = new MD.Jpeg(buffer);
                         tiffBuffer = jpeg.getExifBuffer();
+                        iccProfile = jpeg.getIccProfile();
+                        if (iccProfile) {
+                            var blob = new Blob([iccProfile], {type: "application/octet-stream"});
+                            saveAs(blob, "test.icc");
+                        }
                     } else {
                         tiffBuffer = buffer;
                     }
@@ -175,7 +180,7 @@
                     } 
     
                     var blob = new Blob([dataToSave], {type: "application/octet-stream"});
-                    saveAs(blob, "test.jpg");
+                    //saveAs(blob, "test.jpg");
                 },
                 function() {
                     throw 'Failed to fetch image';
