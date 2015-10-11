@@ -146,12 +146,13 @@
                 }
             }
         
-            var file = 'im.tif';
+            var file = 'im.jpg';
             MD.get(file, 
                 function(buffer) {
                     var tiffBuffer = null;
+                    var jpeg = null;
                     if (file.endsWith('.jpg')) {
-                        var jpeg = new MD.Jpeg(buffer);
+                        jpeg = new MD.Jpeg(buffer);
                         tiffBuffer = jpeg.getExifBuffer();
                     } else {
                         tiffBuffer = buffer;
@@ -162,10 +163,15 @@
                     emitDataTable(tiff.data, document.getElementById('dataTable'));
                     
                     var encoded = tiff.save(MD.LITTLE_ENDIAN);
-                    console.log(encoded);
+                    var dataToSave = encoded;
                     
-                    var blob = new Blob([encoded], {type: "application/octet-stream"});
-                    saveAs(blob, "test.tif");
+                    if (file.endsWith('.jpg')) {
+                        jpeg.setExifBuffer(encoded);
+                        dataToSave = jpeg.save();
+                    } 
+    
+                    var blob = new Blob([dataToSave], {type: "application/octet-stream"});
+                    saveAs(blob, "test.jpg");
                 },
                 function() {
                     throw 'Failed to fetch image';

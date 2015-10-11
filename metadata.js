@@ -3,10 +3,14 @@ var MD = {};
 MD.LITTLE_ENDIAN = 0;
 MD.BIG_ENDIAN = 1;
 
-MD.SOI = 0xd8;
-MD.APP0 = 0xe0;
-MD.APP1 = 0xe1;
-MD.SOS = 0xda;
+MD.JPEG_MARKER_SOI = 0xd8;
+MD.JPEG_MARKER_APP0 = 0xe0;
+MD.JPEG_MARKER_APP1 = 0xe1;
+MD.JPEG_MARKER_SOS = 0xda;
+
+MD.JPEG_HEADER_EXIF = [0x45, 0x78, 0x69, 0x66, 0x0, 0x0];
+MD.JPEG_HEADER_JFIF = [0x4A, 0x46, 0x49, 0x46, 0x0];
+MD.JPEG_HEADER_JFXX = [0x4A, 0x46, 0x49, 0x46, 0x0];
 
 MD.TIFF_LITTLE_ENDIAN = 0x4949;
 MD.TIFF_BIG_ENDIAN = 0x4d4d;
@@ -175,7 +179,7 @@ MD.BinaryWriter.prototype = {
 }
 
 MD.Jpeg = function(buffer) {
-    this.segments = [];
+    this._segments = [];
     this._parse(buffer);
 }
 
@@ -185,19 +189,19 @@ MD.Jpeg.prototype = {
     _parse: function(buffer) {
         var reader = new MD.BinaryReader(buffer, MD.BIG_ENDIAN);
         MD.check(reader.read8u() == 0xff, 'Invalid jpeg magic value');
-        MD.check(reader.read8u() == MD.SOI, 'Invalid jpeg SOI marker');
+        MD.check(reader.read8u() == MD.JPEG_MARKER_SOI, 'Invalid jpeg SOI marker');
         while (true) {
             MD.check(reader.read8u() == 0xff, 'Invalid jpeg marker');
             var marker = reader.read8u();
-            if (marker != MD.SOS) {
+            if (marker != MD.JPEG_MARKER_SOS) {
                 var segmentSize = reader.read16u() - 2;
                 MD.check(segmentSize >= 0, 'Invalid jpeg segment size');
-                this.segments.push({
+                this._segments.push({
                     marker: marker,
                     data: reader.read(segmentSize)
                 });
             } else {
-                this.segments.push({
+                this._segments.push({
                     marker: marker,
                     data: reader.readRemaining()
                 });
@@ -208,8 +212,8 @@ MD.Jpeg.prototype = {
     
     _findSegments: function(marker, header) {
         var result = [];
-        for (var i = 0; i < this.segments.length; i++) {
-            var segment = this.segments[i];
+        for (var i = 0; i < this._segments.length; i++) {
+            var segment = this._segments[i];
             if (segment.marker == marker) {
                 var headerMatch = true;
                 if (header && header.length > 0) {
@@ -230,18 +234,68 @@ MD.Jpeg.prototype = {
         return result;
     },
     
+    _removeSegments: function(marker, header) {
+        var toRemove = this._findSegments(marker, header);
+        for (var i = 0; i < toRemove.length; i++) {
+            var idx = this._segments.indexOf(toRemove[i]);
+            this._segments.slice(idx, 1);
+        }
+    },
+    
     getExifBuffer: function() {
-        var exifHeader = [0x45, 0x78, 0x69, 0x66, 0x0, 0x0];
-        var exifSegments = this._findSegments(MD.APP1, exifHeader);
+        var exifSegments = this._findSegments(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
         switch (exifSegments.length) {
             case 0: return undefined;
             case 1:
                 var reader = new MD.BinaryReader(exifSegments[0].data);
-                reader.position = exifHeader.length;
+                reader.position = MD.JPEG_HEADER_EXIF.length;
                 return reader.readRemaining();
             default: throw 'Too many EXIF segments';
         }
-    }
+    },
+    
+    setExifBuffer: function(buffer) {
+        var segmentSize = buffer.byteLength + MD.JPEG_HEADER_EXIF.length;
+        MD.check(segmentSize <= (0xffff - 2), 'EXIF buffer is too large');
+        this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFIF);
+        this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFXX);
+        this._removeSegments(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
+        var segmentData = new ArrayBuffer(segmentSize)
+        var writer = new MD.BinaryWriter(segmentData, MD.BIG_ENDIAN);
+        writer.write(new Uint8Array(MD.JPEG_HEADER_EXIF).buffer);
+        writer.write(buffer);
+        var segment = {
+            marker: MD.JPEG_MARKER_APP1,
+            data: segmentData
+        }
+        this._segments.unshift(segment);
+    },
+    
+    save: function() {
+        var size = 2;
+        for (var i = 0; i < this._segments.length; i++) {
+            var segment = this._segments[i];
+            size += 4;
+            size += segment.data.byteLength;
+        }
+        size -= 2;
+        var buffer = new ArrayBuffer(size);
+        var writer = new MD.BinaryWriter(buffer, MD.BIG_ENDIAN);
+        writer.write8u(0xff);
+        writer.write8u(MD.JPEG_MARKER_SOI);
+        for (var i = 0; i < this._segments.length; i++) {
+            var segment = this._segments[i];
+            writer.write8u(0xff);
+            writer.write8u(segment.marker);
+            if (segment.marker != MD.JPEG_MARKER_SOS) {
+                var segmentSize = 2 + segment.data.byteLength;
+                MD.check(segmentSize <= 0xffff, 'Segment is too large');
+                writer.write16u(segmentSize);
+            }
+            writer.write(segment.data);
+        }
+        return buffer;
+    },
 }
 
 MD.Tiff = function(buffer) {
