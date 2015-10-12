@@ -68,12 +68,14 @@ MD.SUBIFD_NAME_ID_MAPPING = {
 };
 
 MD.check = function(expr, msg) {
+    'use strict';
     if (!expr) {
         throw msg;
     }
 };
 
 MD.get = function(url, success, failure) {
+    'use strict';
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
         if (xhr.readyState == 4) {
@@ -94,6 +96,7 @@ MD.get = function(url, success, failure) {
 };
 
 MD.BinaryReader = function(buffer, endian) {
+    'use strict';
     this._view = new DataView(buffer);
     this.endian = endian;
     this.position = 0;
@@ -104,6 +107,7 @@ MD.BinaryReader.prototype = {
     constructor: MD.BinaryReader,
 
     readGeneric: function(fn, subSize, subCount, count) {
+        'use strict';
         var result = [];
         for (var i = 0; i < count; i++) {
             var item = [];
@@ -117,22 +121,24 @@ MD.BinaryReader.prototype = {
         return (result.length == 1) ? result[0] : result;
     },
    
-    read8u:  function() { return this.readGeneric('getUint8', 1, 1, 1);   },
-    read8s:  function() { return this.readGeneric('getInt8', 1, 1, 1);    },
-    read16u: function() { return this.readGeneric('getUint16', 2, 1, 1);  },
-    read16s: function() { return this.readGeneric('getInt16', 2, 1, 1);   },
-    read32u: function() { return this.readGeneric('getUint32', 4, 1, 1);  },
-    read32s: function() { return this.readGeneric('getInt32', 4, 1, 1);   },
-    read32f: function() { return this.readGeneric('getFloat32', 4, 1, 1); },
-    read64f: function() { return this.readGeneric('getFloat64', 8, 1, 1); },
+    read8u:  function() { 'use strict'; return this.readGeneric('getUint8', 1, 1, 1);   },
+    read8s:  function() { 'use strict'; return this.readGeneric('getInt8', 1, 1, 1);    },
+    read16u: function() { 'use strict'; return this.readGeneric('getUint16', 2, 1, 1);  },
+    read16s: function() { 'use strict'; return this.readGeneric('getInt16', 2, 1, 1);   },
+    read32u: function() { 'use strict'; return this.readGeneric('getUint32', 4, 1, 1);  },
+    read32s: function() { 'use strict'; return this.readGeneric('getInt32', 4, 1, 1);   },
+    read32f: function() { 'use strict'; return this.readGeneric('getFloat32', 4, 1, 1); },
+    read64f: function() { 'use strict'; return this.readGeneric('getFloat64', 8, 1, 1); },
     
     read: function(size) {
+        'use strict';
         var result = this._view.buffer.slice(this.position, this.position + size);
         this.position += size;
         return result;
     },
     
     readRemaining: function() {
+        'use strict';
         var result = this.read(this.length - this.position);
         this.position = this.length;
         return result;
@@ -140,6 +146,7 @@ MD.BinaryReader.prototype = {
 };
 
 MD.BinaryWriter = function(buffer, endian) {
+    'use strict';
     this.position = 0;
     this.endian = endian;
     this.buffer = buffer;
@@ -150,6 +157,7 @@ MD.BinaryWriter.prototype = {
     constructor: MD.BinaryWriter,
     
     writeGeneric: function(fn, subSize, subCount, count, value) {
+        'use strict';
         var items = (count == 1) ? [value] : value;
         MD.check(items.length == count, 'Invalid tag data size');
         for (var i = 0; i < items.length; i++) {
@@ -162,16 +170,17 @@ MD.BinaryWriter.prototype = {
         }
     },
     
-    write8u:  function(val) { this.writeGeneric('setUint8', 1, 1, 1, val);   },
-    write8s:  function(val) { this.writeGeneric('setInt8', 1, 1, 1, val);    },
-    write16u: function(val) { this.writeGeneric('setUint16', 2, 1, 1, val);  },
-    write16s: function(val) { this.writeGeneric('setInt16', 2, 1, 1, val);   },
-    write32u: function(val) { this.writeGeneric('setUint32', 4, 1, 1, val);  },
-    write32s: function(val) { this.writeGeneric('setInt32', 4, 1, 1, val);   },
-    write32f: function(val) { this.writeGeneric('setFloat32', 4, 1, 1, val); },
-    write64f: function(val) { this.writeGeneric('setFloat64', 8, 1, 1, val); },
+    write8u:  function(val) { 'use strict'; this.writeGeneric('setUint8', 1, 1, 1, val);   },
+    write8s:  function(val) { 'use strict'; this.writeGeneric('setInt8', 1, 1, 1, val);    },
+    write16u: function(val) { 'use strict'; this.writeGeneric('setUint16', 2, 1, 1, val);  },
+    write16s: function(val) { 'use strict'; this.writeGeneric('setInt16', 2, 1, 1, val);   },
+    write32u: function(val) { 'use strict'; this.writeGeneric('setUint32', 4, 1, 1, val);  },
+    write32s: function(val) { 'use strict'; this.writeGeneric('setInt32', 4, 1, 1, val);   },
+    write32f: function(val) { 'use strict'; this.writeGeneric('setFloat32', 4, 1, 1, val); },
+    write64f: function(val) { 'use strict'; this.writeGeneric('setFloat64', 8, 1, 1, val); },
     
     write: function(buf) {
+        'use strict';
         var u8 = new Uint8Array(this._view.buffer);
         u8.set(new Uint8Array(buf), this.position);
         this.position += buf.byteLength;
@@ -179,6 +188,7 @@ MD.BinaryWriter.prototype = {
 };
 
 MD.Jpeg = function(buffer) {
+    'use strict';
     this._segments = [];
     this._parse(buffer);
 };
@@ -187,6 +197,7 @@ MD.Jpeg.prototype = {
     constructor: MD.Jpeg,
     
     _parse: function(buffer) {
+        'use strict';
         var reader = new MD.BinaryReader(buffer, MD.BIG_ENDIAN);
         MD.check(reader.read8u() == 0xff, 'Invalid jpeg magic value');
         MD.check(reader.read8u() == MD.JPEG_MARKER_SOI, 'Invalid jpeg SOI marker');
@@ -211,6 +222,7 @@ MD.Jpeg.prototype = {
     },
     
     _findSegments: function(marker, header) {
+        'use strict';
         var result = [];
         for (var i = 0; i < this._segments.length; i++) {
             var segment = this._segments[i];
@@ -235,6 +247,7 @@ MD.Jpeg.prototype = {
     },
     
     _removeSegments: function(marker, header) {
+        'use strict';
         var toRemove = this._findSegments(marker, header);
         for (var i = 0; i < toRemove.length; i++) {
             var idx = this._segments.indexOf(toRemove[i]);
@@ -243,6 +256,7 @@ MD.Jpeg.prototype = {
     },
     
     getExifBuffer: function() {
+        'use strict';
         var exifSegments = this._findSegments(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
         switch (exifSegments.length) {
             case 0: return undefined;
@@ -255,6 +269,7 @@ MD.Jpeg.prototype = {
     },
     
     setExifBuffer: function(buffer) {
+        'use strict';
         var segmentSize = buffer.byteLength + MD.JPEG_HEADER_EXIF.length;
         MD.check(segmentSize <= (0xffff - 2), 'EXIF buffer is too large');
         this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFIF);
@@ -272,12 +287,12 @@ MD.Jpeg.prototype = {
     },
     
     getIccProfile: function() {
+        'use strict';
         var iccSegments = this._findSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
         if (iccSegments.length === 0) {
             return undefined;
         }
-        var size = 0;
-        var i = 0;
+        var i, size = 0;
         var iccSegment, reader;
         for (i = 0; i < iccSegments.length; i++) {
             iccSegment = iccSegments[i];
@@ -301,11 +316,13 @@ MD.Jpeg.prototype = {
     },
     
     setIccProfile: function(buffer) {
+        'use strict';
         this._removeSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
         // TODO
     },
     
     save: function() {
+        'use strict';
         var i, segment, size = 2;
         for (i = 0; i < this._segments.length; i++) {
             segment = this._segments[i];
@@ -333,6 +350,7 @@ MD.Jpeg.prototype = {
 };
 
 MD.Tiff = function(buffer) {
+    'use strict';
     this._tree = [];
     this._nativeEndian = MD.LITTLE_ENDIAN;
     this._parse(buffer);
@@ -342,6 +360,7 @@ MD.Tiff.prototype = {
     constructor: MD.Tiff,
     
     _parse: function(buffer) {
+        'use strict';
         if (buffer) {
             var reader = new MD.BinaryReader(buffer, MD.LITTLE_ENDIAN);
             switch (reader.read16u()) {
@@ -357,6 +376,7 @@ MD.Tiff.prototype = {
     },
     
     _parseTree: function(reader) {
+        'use strict';
         var trunk = [];
         while (true) {
             var ifd = {
@@ -382,7 +402,7 @@ MD.Tiff.prototype = {
                 };
                 tagsById[tag.id] = tag;
                 ifd.tags.push(tag);
-                if (this._isSubIfd(tag)) {
+                if (this._pointsToSubIfd(tag)) {
                     MD.check(tag.type == MD.TIFF_TYPE_LONG || tag.type == MD.TIFF_TYPE_IFD, 'Invalid tag type for sub IFD (' + tag.type + ')');
                     MD.check(!(tag.id in ifd.branches), 'Multiple sub IFDs with same parent ID (' + tag.id + ')');
                     ifd.branches[tag.id] = [];
@@ -406,6 +426,7 @@ MD.Tiff.prototype = {
     },
     
     _extractData: function(reader, tagsById) {
+        'use strict';
         var result = [];
         for (var i = 0; i < MD.DATA_ID_PAIRS.length; i++) {
             var pair = MD.DATA_ID_PAIRS[i];
@@ -434,6 +455,7 @@ MD.Tiff.prototype = {
     },
     
     _parsePayload: function(payload, endian, type, count) {
+        'use strict';
         var reader = new MD.BinaryReader(payload, endian);
         switch (type) {
             case MD.TIFF_TYPE_UNDEFINED:
@@ -467,7 +489,8 @@ MD.Tiff.prototype = {
         }
     },
     
-    _isSubIfd: function(tag) {
+    _pointsToSubIfd: function(tag) {
+        'use strict';
         if (tag.type == MD.TIFF_TYPE_IFD) {
             return true;
         }
@@ -484,6 +507,7 @@ MD.Tiff.prototype = {
     },
     
     _getTypeSize: function(type) {
+        'use strict';
         switch (type) {
             case MD.TIFF_TYPE_BYTE:
             case MD.TIFF_TYPE_ASCII:
@@ -507,6 +531,7 @@ MD.Tiff.prototype = {
     },
     
     _parsePathComponent: function(component) {
+        'use strict';
         var result, match = /(\w+)\[(\d+)\]/.exec(component);
         MD.check(match, 'Invalid path component: ' + component);
         result = {
@@ -517,6 +542,7 @@ MD.Tiff.prototype = {
     },
     
     _getTagsByPath: function(path, create) {
+        'use strict';
         MD.check(path && path.startsWith('/'), 'Invalid path: ' + path);
         var components = path.split('/');
         var trunk = this._tree;
@@ -574,6 +600,7 @@ MD.Tiff.prototype = {
     },
     
     _enumerateRecursive: function(trunk, list, path) {
+        'use strict';
         for (var i = 0; i < trunk.length; i++) {
             var newPath = path + '/ifd[' + i + ']';
             var ifd = trunk[i];
@@ -603,6 +630,7 @@ MD.Tiff.prototype = {
     },
     
     _removeTag: function(tags, id) {
+        'use strict';
         if (tags) {
             var idx = -1;
             for (var i = 0; i < tags.length; i++) {
@@ -618,10 +646,12 @@ MD.Tiff.prototype = {
     },
     
     getTags: function(path) {
+        'use strict';
         return this._getTagsByPath(path);
     },
     
     getTag: function(path, id) {
+        'use strict';
         var tags = this._getTagsByPath(path);
         if (tags) {
             for (var i = 0; i < tags.length; i++) {
@@ -634,11 +664,13 @@ MD.Tiff.prototype = {
     },
     
     removeTag: function(path, id) {
+        'use strict';
         var tags = this._getTagsByPath(path);
         this._removeTag(tags, id);
     },
     
     addTag: function(path, tag) {
+        'use strict';
         var tags = this._getTagsByPath(path, true);
         MD.check(tags, 'Failed to get or create path: ' + path);
         this._removeTag(tags, tag.id);
@@ -646,12 +678,14 @@ MD.Tiff.prototype = {
     },
     
     enumerate: function() {
+        'use strict';
         var list = [];
         this._enumerateRecursive(this._tree, list, '');
         return list;
     },
     
     _computeCount: function(tag) {
+        'use strict';
         switch (tag.type) {
             case MD.TIFF_TYPE_RATIONAL:
             case MD.TIFF_TYPE_SRATIONAL:
@@ -666,6 +700,7 @@ MD.Tiff.prototype = {
     },
         
     _writeTagData: function(writer, type, data, count) {
+        'use strict';
         var beforePosition = writer.position;
         switch (type) {
             case MD.TIFF_TYPE_UNDEFINED:
@@ -718,12 +753,13 @@ MD.Tiff.prototype = {
     },
     
     _saveBranches: function(layoutWriter, payloadWriter, trunk, dataOffsets) {
+        'use strict';
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
             for (var j in ifd.branches) {
                 if (ifd.branches.hasOwnProperty(j)) {
                     var dataOffset = dataOffsets[i][j];
-                    if (dataOffset && this._isSubIfd(dataOffset.tag)) {
+                    if (dataOffset && this._pointsToSubIfd(dataOffset.tag)) {
                         var subTrunks = ifd.branches[j];
                         MD.check(this._computeCount(dataOffset.tag) == subTrunks.length, 'Inconsistent number of sub IFDs');
                         var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
@@ -739,6 +775,7 @@ MD.Tiff.prototype = {
     },
     
     _saveData: function(layoutWriter, payloadWriter, trunk, dataOffsets) {
+        'use strict';
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
             if (ifd.data) {
@@ -768,6 +805,7 @@ MD.Tiff.prototype = {
     },
     
     _isBrokenPair: function(id, tagsById) {
+        'use strict';
         var valid = true;
         for (var i = 0; i < MD.DATA_ID_PAIRS.length; i++) {
             var pair = MD.DATA_ID_PAIRS[i];
@@ -784,6 +822,7 @@ MD.Tiff.prototype = {
     },
     
     _saveTrunk: function(layoutWriter, payloadWriter, trunk) {
+        'use strict';
         var dataOffsets = {};
         for (var i = 0; i < trunk.length; i++) {
             dataOffsets[i] = {};
@@ -799,7 +838,7 @@ MD.Tiff.prototype = {
             for (j in  tagsById) {
                 if (tagsById.hasOwnProperty(j)) {
                     tag = tagsById[j];
-                    if (this._isSubIfd(tag) && !(tag.id in ifd.branches)) {
+                    if (this._pointsToSubIfd(tag) && !(tag.id in ifd.branches)) {
                         continue;
                     }
                     if (this._isBrokenPair(tag.id, tagsById)) {
@@ -842,6 +881,7 @@ MD.Tiff.prototype = {
     },
     
     _computeSizes: function() {
+        'use strict';
         var sizes = {
             layoutSize: 8,
             payloadSize: 0
@@ -853,6 +893,7 @@ MD.Tiff.prototype = {
     },
     
     _computeSizesRecursive: function(trunk, sizes) {
+        'use strict';
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
             var j, k, dataSize;
@@ -886,6 +927,7 @@ MD.Tiff.prototype = {
     },
     
     save: function(endian) {
+        'use strict';
         var sizes = this._computeSizes();
         var buffer = new ArrayBuffer(sizes.layoutSize + sizes.payloadSize);
         

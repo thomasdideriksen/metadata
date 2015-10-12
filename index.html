@@ -157,7 +157,7 @@
                         iccProfile = jpeg.getIccProfile();
                         if (iccProfile) {
                             var blob = new Blob([iccProfile], {type: "application/octet-stream"});
-                            saveAs(blob, "test.icc");
+                            //saveAs(blob, "test.icc");
                         }
                     } else {
                         tiffBuffer = buffer;
