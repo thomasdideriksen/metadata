@@ -71,7 +71,7 @@ MD.check = function(expr, msg) {
     if (!expr) {
         throw msg;
     }
-}
+};
 
 MD.get = function(url, success, failure) {
     var xhr = new XMLHttpRequest();
@@ -87,18 +87,18 @@ MD.get = function(url, success, failure) {
                 }
             }
         }
-    }
+    };
     xhr.open('GET', url, true);
     xhr.responseType = 'arraybuffer';
     xhr.send();
-}
+};
 
 MD.BinaryReader = function(buffer, endian) {
     this._view = new DataView(buffer);
     this.endian = endian;
     this.position = 0;
     this.length = buffer.byteLength;
-}
+};
 
 MD.BinaryReader.prototype = {
     constructor: MD.BinaryReader,
@@ -123,8 +123,6 @@ MD.BinaryReader.prototype = {
     read16s: function() { return this.readGeneric('getInt16', 2, 1, 1);   },
     read32u: function() { return this.readGeneric('getUint32', 4, 1, 1);  },
     read32s: function() { return this.readGeneric('getInt32', 4, 1, 1);   },
-    read32u: function() { return this.readGeneric('getUint32', 4, 1, 1);  },
-    read32s: function() { return this.readGeneric('getInt32', 4, 1, 1);   },
     read32f: function() { return this.readGeneric('getFloat32', 4, 1, 1); },
     read64f: function() { return this.readGeneric('getFloat64', 8, 1, 1); },
     
@@ -139,14 +137,14 @@ MD.BinaryReader.prototype = {
         this.position = this.length;
         return result;
     }
-}
+};
 
 MD.BinaryWriter = function(buffer, endian) {
     this.position = 0;
     this.endian = endian;
     this.buffer = buffer;
     this._view = new DataView(buffer);
-}
+};
 
 MD.BinaryWriter.prototype = {
     constructor: MD.BinaryWriter,
@@ -178,12 +176,12 @@ MD.BinaryWriter.prototype = {
         u8.set(new Uint8Array(buf), this.position);
         this.position += buf.byteLength;
     }
-}
+};
 
 MD.Jpeg = function(buffer) {
     this._segments = [];
     this._parse(buffer);
-}
+};
 
 MD.Jpeg.prototype = {
     constructor: MD.Jpeg,
@@ -262,27 +260,29 @@ MD.Jpeg.prototype = {
         this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFIF);
         this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFXX);
         this._removeSegments(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
-        var segmentData = new ArrayBuffer(segmentSize)
+        var segmentData = new ArrayBuffer(segmentSize);
         var writer = new MD.BinaryWriter(segmentData, MD.BIG_ENDIAN);
         writer.write(new Uint8Array(MD.JPEG_HEADER_EXIF).buffer);
         writer.write(buffer);
         var segment = {
             marker: MD.JPEG_MARKER_APP1,
             data: segmentData
-        }
+        };
         this._segments.unshift(segment);
     },
     
     getIccProfile: function() {
         var iccSegments = this._findSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
-        if (iccSegments.length == 0) {
+        if (iccSegments.length === 0) {
             return undefined;
         }
         var size = 0;
-        for (var i = 0; i < iccSegments.length; i++) {
-            var iccSegment = iccSegments[i];
+        var i = 0;
+        var iccSegment, reader;
+        for (i = 0; i < iccSegments.length; i++) {
+            iccSegment = iccSegments[i];
             size += (iccSegment.data.byteLength - MD.JPEG_HEADER_ICCPROFILE.length - 2);
-            var reader = new MD.BinaryReader(iccSegment.data, MD.LITTLE_ENDIAN);
+            reader = new MD.BinaryReader(iccSegment.data, MD.LITTLE_ENDIAN);
             reader.position = MD.JPEG_HEADER_ICCPROFILE.length;
             var current = reader.read8u();
             var total = reader.read8u();
@@ -291,9 +291,9 @@ MD.Jpeg.prototype = {
         }
         var buffer = new ArrayBuffer(size);
         var writer = new MD.BinaryWriter(buffer, MD.LITTLE_ENDIAN);
-        for (var i = 0; i < iccSegments.length; i++) {
-            var iccSegment = iccSegments[i];
-            var reader = new MD.BinaryReader(iccSegment.data, MD.LITTLE_ENDIAN);
+        for (i = 0; i < iccSegments.length; i++) {
+            iccSegment = iccSegments[i];
+            reader = new MD.BinaryReader(iccSegment.data, MD.LITTLE_ENDIAN);
             reader.position = MD.JPEG_HEADER_ICCPROFILE.length + 2;
             writer.write(reader.readRemaining());
         }
@@ -302,12 +302,13 @@ MD.Jpeg.prototype = {
     
     setIccProfile: function(buffer) {
         this._removeSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
+        // TODO
     },
     
     save: function() {
-        var size = 2;
-        for (var i = 0; i < this._segments.length; i++) {
-            var segment = this._segments[i];
+        var i, segment, size = 2;
+        for (i = 0; i < this._segments.length; i++) {
+            segment = this._segments[i];
             size += 4;
             size += segment.data.byteLength;
         }
@@ -316,8 +317,8 @@ MD.Jpeg.prototype = {
         var writer = new MD.BinaryWriter(buffer, MD.BIG_ENDIAN);
         writer.write8u(0xff);
         writer.write8u(MD.JPEG_MARKER_SOI);
-        for (var i = 0; i < this._segments.length; i++) {
-            var segment = this._segments[i];
+        for (i = 0; i < this._segments.length; i++) {
+            segment = this._segments[i];
             writer.write8u(0xff);
             writer.write8u(segment.marker);
             if (segment.marker != MD.JPEG_MARKER_SOS) {
@@ -329,13 +330,13 @@ MD.Jpeg.prototype = {
         }
         return buffer;
     },
-}
+};
 
 MD.Tiff = function(buffer) {
     this._tree = [];
     this._nativeEndian = MD.LITTLE_ENDIAN;
-    this._parse(buffer)
-}
+    this._parse(buffer);
+};
 
 MD.Tiff.prototype = {
     constructor: MD.Tiff,
@@ -396,7 +397,7 @@ MD.Tiff.prototype = {
             var offset = reader.read32u();
             ifd.data = this._extractData(reader, tagsById);
             trunk.push(ifd);
-            if (offset == 0) {
+            if (offset === 0) {
                 break;
             }
             reader.position = offset;
@@ -404,7 +405,7 @@ MD.Tiff.prototype = {
         return trunk;
     },
     
-    _extractData(reader, tagsById) {
+    _extractData: function(reader, tagsById) {
         var result = [];
         for (var i = 0; i < MD.DATA_ID_PAIRS.length; i++) {
             var pair = MD.DATA_ID_PAIRS[i];
@@ -506,8 +507,7 @@ MD.Tiff.prototype = {
     },
     
     _parsePathComponent: function(component) {
-        var result = undefined;
-        var match = /(\w+)\[(\d+)\]/.exec(component);
+        var result, match = /(\w+)\[(\d+)\]/.exec(component);
         MD.check(match, 'Invalid path component: ' + component);
         result = {
             name: match[1],
@@ -521,6 +521,7 @@ MD.Tiff.prototype = {
         var components = path.split('/');
         var trunk = this._tree;
         var ifd = null;
+        var j;
         for (var i = 1; i < components.length; i++) {
             var component = components[i].trim().toLowerCase();
             var data = this._parsePathComponent(component);
@@ -528,7 +529,7 @@ MD.Tiff.prototype = {
                 MD.check(data.name == 'ifd', 'Invalid component (' + component + ') expected "ifd"');
                 if (data.index >= trunk.length) {
                     if (create) {
-                        for (var j = trunk.length; j <= data.index; j++) {
+                        for (j = trunk.length; j <= data.index; j++) {
                             trunk.push({
                                 tags: [],
                                 branches: {}
@@ -557,7 +558,7 @@ MD.Tiff.prototype = {
                 }
                 if (data.index >= ifd.branches[id].length) {
                     if (create) {
-                        for (var j = ifd.branches[id].length; j <= data.index; j++) {
+                        for (j = ifd.branches[id].length; j <= data.index; j++) {
                             ifd.branches[id].push([]);
                         }
                     } else {
@@ -576,23 +577,26 @@ MD.Tiff.prototype = {
         for (var i = 0; i < trunk.length; i++) {
             var newPath = path + '/ifd[' + i + ']';
             var ifd = trunk[i];
-            for (var j = 0; j < ifd.tags.length; j++) {
+            var j;
+            for (j = 0; j < ifd.tags.length; j++) {
                 list.push({
                     path: newPath,
                     tag: ifd.tags[j]    
                 });
             }
-            for (var j in ifd.branches) {
-                var subTrunks = ifd.branches[j];
-                var branchName = j.toString();
-                for (var name in MD.SUBIFD_NAME_ID_MAPPING) {
-                    if (MD.SUBIFD_NAME_ID_MAPPING[name] == j) {
-                        branchName = name;
-                        break;
+            for (j in ifd.branches) {
+                if (ifd.branches.hasOwnProperty(j)) {
+                    var subTrunks = ifd.branches[j];
+                    var branchName = j.toString();
+                    for (var name in MD.SUBIFD_NAME_ID_MAPPING) {
+                        if (MD.SUBIFD_NAME_ID_MAPPING[name] == j) {
+                            branchName = name;
+                            break;
+                        }
                     }
-                }
-                for (var k = 0; k < subTrunks.length; k++) {
-                    this._enumerateRecursive(subTrunks[k], list, newPath + '/' + branchName + '[' + k + ']');
+                    for (var k = 0; k < subTrunks.length; k++) {
+                        this._enumerateRecursive(subTrunks[k], list, newPath + '/' + branchName + '[' + k + ']');
+                    }
                 }
             }
         }
@@ -717,15 +721,17 @@ MD.Tiff.prototype = {
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
             for (var j in ifd.branches) {
-                var dataOffset = dataOffsets[i][j];
-                if (dataOffset && this._isSubIfd(dataOffset.tag)) {
-                    var subTrunks = ifd.branches[j];
-                    MD.check(this._computeCount(dataOffset.tag) == subTrunks.length, 'Inconsistent number of sub IFDs');
-                    var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
-                    writer.position = dataOffset.offset;
-                    for (var k = 0; k < subTrunks.length; k++) {
-                        writer.write32u(layoutWriter.position);
-                        this._saveTrunk(layoutWriter, payloadWriter, subTrunks[k]);
+                if (ifd.branches.hasOwnProperty(j)) {
+                    var dataOffset = dataOffsets[i][j];
+                    if (dataOffset && this._isSubIfd(dataOffset.tag)) {
+                        var subTrunks = ifd.branches[j];
+                        MD.check(this._computeCount(dataOffset.tag) == subTrunks.length, 'Inconsistent number of sub IFDs');
+                        var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
+                        writer.position = dataOffset.offset;
+                        for (var k = 0; k < subTrunks.length; k++) {
+                            writer.write32u(layoutWriter.position);
+                            this._saveTrunk(layoutWriter, payloadWriter, subTrunks[k]);
+                        }
                     }
                 }
             }
@@ -741,13 +747,14 @@ MD.Tiff.prototype = {
                     var offsetLen = dataOffsets[i][chunk.lengthId];
                     var offsetPos = dataOffsets[i][chunk.positionId];
                     if (offsetLen && offsetPos) {
+                        var k;
                         var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
                         writer.position = offsetLen.offset;
-                        for (var k = 0; k < chunk.data.length; k++) {
-                            writer.write32u(chunk.data[k].byteLength)
+                        for (k = 0; k < chunk.data.length; k++) {
+                            writer.write32u(chunk.data[k].byteLength);
                         }
                         writer.position = offsetPos.offset;
-                        for (var k = 0; k < chunk.data.length; k++) {
+                        for (k = 0; k < chunk.data.length; k++) {
                             writer.write32u(payloadWriter.position);
                             payloadWriter.write(chunk.data[k]);
                             if (chunk.data[k].byteLength % 2 == 1) {
@@ -760,7 +767,7 @@ MD.Tiff.prototype = {
         }
     },
     
-    _isBrokenPair(id, tagsById) {
+    _isBrokenPair: function(id, tagsById) {
         var valid = true;
         for (var i = 0; i < MD.DATA_ID_PAIRS.length; i++) {
             var pair = MD.DATA_ID_PAIRS[i];
@@ -769,7 +776,7 @@ MD.Tiff.prototype = {
                 break;
             }
             if (id == pair.lengthId) {
-                valid =  (pair.positionId in tagsById);
+                valid = (pair.positionId in tagsById);
                 break;
             }
         }
@@ -782,28 +789,31 @@ MD.Tiff.prototype = {
             dataOffsets[i] = {};
             var ifd = trunk[i];
             var tagsById = {};
-            for (var j = 0; j < ifd.tags.length; j++) {
-                var tag = ifd.tags[j];
+            var j, tag;
+            for (j = 0; j < ifd.tags.length; j++) {
+                tag = ifd.tags[j];
                 MD.check(!(tag.id in tagsById), 'Duplicate tag ID');
                 tagsById[tag.id] = tag;
             }
             var prunedTags = [];
-            for (var j in  tagsById) {
-                var tag = tagsById[j];
-                if (this._isSubIfd(tag) && !(tag.id in ifd.branches)) {
-                    continue;
+            for (j in  tagsById) {
+                if (tagsById.hasOwnProperty(j)) {
+                    tag = tagsById[j];
+                    if (this._isSubIfd(tag) && !(tag.id in ifd.branches)) {
+                        continue;
+                    }
+                    if (this._isBrokenPair(tag.id, tagsById)) {
+                        continue;
+                    }
+                    prunedTags.push(tag);
                 }
-                if (this._isBrokenPair(tag.id, tagsById)) {
-                    continue;
-                }
-                prunedTags.push(tag);
             }
             prunedTags.sort(function(a, b) {
                 return (a.id - b.id);
             });
             layoutWriter.write16u(prunedTags.length);
-            for (var j = 0; j < prunedTags.length; j++) {
-                var tag = prunedTags[j];
+            for (j = 0; j < prunedTags.length; j++) {
+                tag = prunedTags[j];
                 var count = this._computeCount(tag);
                 var size = this._getTypeSize(tag.type) * count;
                 layoutWriter.write16u(tag.id);
@@ -835,38 +845,41 @@ MD.Tiff.prototype = {
         var sizes = {
             layoutSize: 8,
             payloadSize: 0
-        }
+        };
         this._computeSizesRecursive(this._tree, sizes);
-        MD.check(sizes.layoutSize % 2 == 0, 'Invalid file structure size');
-        MD.check(sizes.payloadSize % 2 == 0, 'Invalid file structure size');
+        MD.check(sizes.layoutSize % 2 === 0, 'Invalid file structure size');
+        MD.check(sizes.payloadSize % 2 === 0, 'Invalid file structure size');
         return sizes;
     },
     
     _computeSizesRecursive: function(trunk, sizes) {
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
+            var j, k, dataSize;
             sizes.layoutSize += 2;
-            for (var j = 0; j < ifd.tags.length; j++) {
+            for (j = 0; j < ifd.tags.length; j++) {
                 sizes.layoutSize += 12;
                 var tag = ifd.tags[j];
-                var dataSize = this._computeCount(tag) * this._getTypeSize(tag.type);
+                dataSize = this._computeCount(tag) * this._getTypeSize(tag.type);
                 if (dataSize > 4) {
                     sizes.payloadSize += dataSize + (dataSize % 2); // Note: Padding
                 }
             }
             sizes.layoutSize += 4;
             if (ifd.data) {
-                for (var j = 0; j < ifd.data.length; j++) {
-                    for (var k = 0; k < ifd.data[j].data.length; k++) {
-                        var dataSize = ifd.data[j].data[k].byteLength;
+                for (j = 0; j < ifd.data.length; j++) {
+                    for (k = 0; k < ifd.data[j].data.length; k++) {
+                        dataSize = ifd.data[j].data[k].byteLength;
                         sizes.payloadSize += dataSize + (dataSize % 2); // Note: Padding
                     }
                 }
             }
-            for (var j in ifd.branches) {
-                var subTrunks = ifd.branches[j];
-                for (var k = 0; k < subTrunks.length; k++) {
-                    this._computeSizesRecursive(subTrunks[k], sizes);
+            for (j in ifd.branches) {
+                if (ifd.branches.hasOwnProperty(j)) {
+                    var subTrunks = ifd.branches[j];
+                    for (k = 0; k < subTrunks.length; k++) {
+                        this._computeSizesRecursive(subTrunks[k], sizes);
+                    }
                 }
             }
         }
@@ -876,19 +889,19 @@ MD.Tiff.prototype = {
         var sizes = this._computeSizes();
         var buffer = new ArrayBuffer(sizes.layoutSize + sizes.payloadSize);
         
-        var endian = endian ? endian : this._nativeEndian;
-        var layoutWriter = new MD.BinaryWriter(buffer, endian);
-        var payloadWriter = new MD.BinaryWriter(buffer, endian);
+        var targetEndian = endian ? endian : this._nativeEndian;
+        var layoutWriter = new MD.BinaryWriter(buffer, targetEndian);
+        var payloadWriter = new MD.BinaryWriter(buffer, targetEndian);
         payloadWriter.position = sizes.layoutSize;
         
         switch (layoutWriter.endian) {
             case MD.LITTLE_ENDIAN: layoutWriter.write16u(MD.TIFF_LITTLE_ENDIAN); break;
             case MD.BIG_ENDIAN: layoutWriter.write16u(MD.TIFF_BIG_ENDIAN); break;
-            default: throw 'Invalid endian specifier (' + endian + ')';
+            default: throw 'Invalid endian specifier (' + layoutWriter.endian + ')';
         }
         layoutWriter.write16u(MD.TIFF_MAGIC);
         layoutWriter.write32u(layoutWriter.position + 4);
         this._saveTrunk(layoutWriter, payloadWriter, this._tree);
         return buffer;
     }
-}
+};
