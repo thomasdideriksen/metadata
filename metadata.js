@@ -52,7 +52,6 @@ MD.DATA_ID_PAIRS = [
     {
         positionId: MD.TIFF_ID_STRIPOFFSETS,
         lengthId: MD.TIFF_ID_STRIPBYTECOUNTS
-
     },
     {
         positionId: MD.TIFF_ID_TILEOFFSETS,
@@ -317,8 +316,39 @@ MD.Jpeg.prototype = {
     
     setIccProfile: function(buffer) {
         'use strict';
+        var maxSize = 0xffff - MD.JPEG_HEADER_ICCPROFILE.length - 4;
+        var segmentCount = Math.ceil(buffer.byteLength / maxSize);
+        MD.check(segmentCount <= 255, 'ICC profile is too large');
         this._removeSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
-        // TODO
+        var reader = new MD.BinaryReader(buffer, MD.LITTLE_ENDIAN);
+        var iccSegments = [];
+        var remaining = buffer.byteLength;
+        var currentSegment = 1;
+        while (remaining > 0) {
+            var size = Math.min(remaining, maxSize);
+            remaining -= size;
+            var iccBuffer = new ArrayBuffer(size + MD.JPEG_HEADER_ICCPROFILE.length + 2);
+            var writer = new MD.BinaryWriter(iccBuffer, MD.BIG_ENDIAN);
+            writer.write(new Uint8Array(MD.JPEG_HEADER_ICCPROFILE).buffer);
+            writer.write8u(currentSegment++);
+            writer.write8u(segmentCount);
+            writer.write(reader.read(size));
+            iccSegments.push({
+                marker: MD.JPEG_MARKER_APP2,
+                data: iccBuffer
+            });
+        }
+        for (var i = 0; i < this._segments.length; i++) {
+            var segment = this._segments[i];
+            if (segment.marker != MD.JPEG_MARKER_APP0 && segment.marker != MD.JPEG_MARKER_APP1) {
+                MD.check(i >= 1, 'Invalid segment order');
+                var idx = i;
+                for (var j = 0; j < iccSegments.length; j++) {
+                    this._segments.splice(idx++, 0, iccSegments[j]);
+                }
+                break;
+            }
+        }
     },
     
     save: function() {
