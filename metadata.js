@@ -250,7 +250,7 @@ MD.Jpeg.prototype = {
         var toRemove = this._findSegments(marker, header);
         for (var i = 0; i < toRemove.length; i++) {
             var idx = this._segments.indexOf(toRemove[i]);
-            this._segments.slice(idx, 1);
+            this._segments.splice(idx, 1);
         }
     },
     
@@ -342,9 +342,8 @@ MD.Jpeg.prototype = {
             var segment = this._segments[i];
             if (segment.marker != MD.JPEG_MARKER_APP0 && segment.marker != MD.JPEG_MARKER_APP1) {
                 MD.check(i >= 1, 'Invalid segment order');
-                var idx = i;
-                for (var j = 0; j < iccSegments.length; j++) {
-                    this._segments.splice(idx++, 0, iccSegments[j]);
+                for (var j = iccSegments.length - 1; j >= 0; j--) {
+                    this._segments.splice(i, 0, iccSegments[j]);
                 }
                 break;
             }

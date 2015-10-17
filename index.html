@@ -145,8 +145,33 @@
                     }
                 }
             }
+            
+            
+            function save(buffer, name) {
+                var blob = new Blob([buffer], {type: "application/octet-stream"});
+                saveAs(blob, name);
+            }
         
-            var file = 'im_large_icc.jpg';
+            MD.get('im_large_icc.jpg', function(buf0) {
+            
+                MD.get('im.jpg', function(buf1) {
+                
+                    var jpg0 = new MD.Jpeg(buf0);
+                    var jpg1 = new MD.Jpeg(buf1);
+                    
+                    var icc0 = jpg0.getIccProfile();
+                    if (icc0) {
+                        jpg1.setIccProfile(icc0);
+                        var output = jpg1.save();
+                        save(output, 'result.jpg');
+                    }
+                });
+            });
+
+            
+        
+            
+            /*var file = 'im_large_icc.jpg';
             MD.get(file, 
                 function(buffer) {
                     var tiffBuffer = null;
@@ -187,7 +212,7 @@
                 },
                 function() {
                     throw 'Failed to fetch image';
-                })
+                })*/
         
         </script>
         
