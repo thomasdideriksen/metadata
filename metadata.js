@@ -89,30 +89,33 @@ MD.TIFF_ID_TILEBYTECOUNTS = 0x0145;
 //
 // Photoshop resource constants
 //
-MD.PHOTOSHOP_8BIM = 0x3842494d;
+MD.PHOTOSHOP_8BIM = 0x3842494D;
+
+//
+// Photoshop tag IDs
+//
+MD.PHOTOSHOP_ID_THUMB4 = 0x0409;
+MD.PHOTOSHOP_ID_THUMB5 = 0x040C;
 
 //
 // Known tag pairs - these tag pairs indicates the position and 
 // size of a data payload. The codec must know about these in order
 // to properly extract and re-insert this data.
 //
-MD.DATA_ID_PAIRS = [
-    {
-        // Embedded thumbnail
+MD.KNOWN_PAIRS = {
+    'jpeginterchangeformat': {
         positionId: MD.TIFF_ID_JPEGINTERCHANGEFORMAT,
         lengthId: MD.TIFF_ID_JPEGINTERCHANGEFORMATLENGTH
     },
-    {
-        // Tiff image data, strips
+    'strips': {
         positionId: MD.TIFF_ID_STRIPOFFSETS,
         lengthId: MD.TIFF_ID_STRIPBYTECOUNTS
     },
-    {
-        // Tiff image data, tiles
+    'tiles': {
         positionId: MD.TIFF_ID_TILEOFFSETS,
         lengthId: MD.TIFF_ID_TILEBYTECOUNTS
     }
-];
+};
 
 //
 // Known sub-IFD tiff tags - these tags points to one (or multiple) 
@@ -120,8 +123,7 @@ MD.DATA_ID_PAIRS = [
 // these in order to properly encode/decode the full tag tree.
 // This structure also includes human readable names for adressing purposes.
 // 
-//
-MD.SUBIFD_NAME_ID_MAPPING = {
+MD.KNOWN_SUBIFDS = {
     'exif': MD.TIFF_ID_EXIFIFD,
     'gps': MD.TIFF_ID_GPSIFD,
     'interoperability': MD.TIFF_ID_INTEROPERABILITYIFD,
@@ -436,6 +438,43 @@ MD.JpegResource.prototype = {
     },
     
     //
+    // Helper function for getting the embedded thumbnail
+    //
+    getThumbnailBuffer: function() {
+        // First attempt to get the thumbnail in the Photoshop segment
+        var photoshopBuf = this.getPhotoshopBuffer();
+        if (photoshopBuf) {
+            var photoshop = new MD.PhotoshopResource(photoshopBuf);
+            var thumb = photoshop.getTag(MD.PHOTOSHOP_ID_THUMB5);
+            if (!thumb) {
+                thumb = photoshop.getTag(MD.PHOTOSHOP_ID_THUMB4);
+            }
+            if (thumb) {
+                var reader = new MD.BinaryReader(thumb.data, MD.BIG_ENDIAN);
+                var format = reader.read32u();
+                var width = reader.read32u();
+                var height = reader.read32u();
+                var widthBytes = reader.read32u();
+                var totalSize = reader.read32u();
+                var compressedSize = reader.read32u();
+                var bitsPerPixel = reader.read16u();
+                var numberOfPlanes = reader.read16u();
+                if (format == 1) {
+                    return reader.readRemaining();
+                }
+            } 
+        }
+        // Otherwise attempt to get the legacy thumbnail in IFD1
+        var exifBuf = this.getExifBuffer();
+        if (exifBuf) {
+            var exif = new MD.TiffResource(exifBuf);
+            var data = exif.getData('/ifd[1]', 'jpeginterchangeformat');
+            return (data.length == 1) ? data[0] : undefined;
+        }
+        return undefined;
+    },
+    
+    //
     // Serialize (or save) jpeg. This function returns an ArrayBuffer
     // that contains valid jpeg data.
     //
@@ -615,7 +654,7 @@ MD.TiffResource.prototype = {
     //
     // Add tag to tag-list that matches the specified path (will overwrite if the tag already exist)
     //
-    addTag: function(path, tag) {
+    setTag: function(path, tag) {
         'use strict';
         var tags = this._getTagsByPath(path, true);
         MD.check(tags, 'Failed to get or create path: ' + path);
@@ -626,11 +665,74 @@ MD.TiffResource.prototype = {
     //
     // Enumerate all tags in the tiff tree
     //
-    enumerate: function() {
+    enumerateTags: function() {
         'use strict';
         var list = [];
         this._enumerateRecursive(this._tree, list, '');
         return list;
+    },
+    
+    //
+    // Get named data
+    //
+    getData: function(path, name) {
+        'use strict';
+        MD.check(name in MD.KNOWN_PAIRS, 'Unknown data name: "' + name + '"');
+        var ifd = this._getIfdByPath(path, false);
+        if (ifd && ifd.data && (name in ifd.data)) {
+            return ifd.data[name].data;
+        }
+        return undefined;
+    },
+    
+    //
+    // Set named data
+    //
+    setData: function(path, name, data) {
+        'use strict';
+        MD.check(name in MD.KNOWN_PAIRS, 'Unknown data name: "' + name + '"');
+        // Set data
+        var pair = MD.KNOWN_PAIRS[name];
+        var ifd = this._getIfdByPath(path, true);
+        ifd.data = ifd.data ? ifd.data : {};
+        ifd.data[name] = {
+            positionId: pair.positionId,
+            lengthId: pair.lengthId,
+            data: data
+        }
+        // Ensure that the corresponding tag pair is present in the IFD
+        this._removeTag(ifd.tags, pair.positionId);
+        ifd.tags.push({
+            id: pair.positionId,
+            type: MD.TIFF_TYPE_LONG,
+            data: 0
+        });
+        this._removeTag(ifd.tags, pair.lengthId);
+        ifd.tags.push({
+            id: pair.lengthId,
+            type: MD.TIFF_TYPE_LONG,
+            data: 0
+        });
+    },
+    
+    //
+    // Remove named data
+    //
+    removeData: function(path, name) {
+        'use strict';
+        // Remove named data and corresponding tag pair
+        MD.check(name in MD.KNOWN_PAIRS, 'Unknown data name: "' + name + '"');
+        var ifd = this._getIfdByPath(path, false);
+        var pair = MD.KNOWN_PAIRS[name];
+        if (ifd && ifd.data && (name in ifd.data)) {
+            delete ifd.data[name];
+            this._removeTag(ifd.tags, pair.positionId);
+            this._removeTag(ifd.tags, pair.lengthId);
+        }
+    },
+    
+    enumerateData: function() {
+        // TODO
     },
     
     //
@@ -800,8 +902,8 @@ MD.TiffResource.prototype = {
     _isBrokenPair: function(id, tagsById) {
         'use strict';
         var valid = true;
-        for (var i = 0; i < MD.DATA_ID_PAIRS.length; i++) {
-            var pair = MD.DATA_ID_PAIRS[i];
+        for (var i in MD.KNOWN_PAIRS) {
+            var pair = MD.KNOWN_PAIRS[i];
             if (id == pair.positionId) {
                 valid = (pair.lengthId in tagsById);
                 break;
@@ -812,6 +914,13 @@ MD.TiffResource.prototype = {
             }
         }
         return !valid;
+    },
+    
+    //
+    // Check if the specifed id is part of a pair where the data payload is missing
+    //
+    _isMissingDataPayload: function(id, tagsById, data) {
+        // TODO
     },
     
     //
@@ -835,7 +944,7 @@ MD.TiffResource.prototype = {
             var prunedTags = [];
             for (j in  tagsById) {
                 if (tagsById.hasOwnProperty(j)) {
-                    // Prune sub IFD pointer tags that are no longer pointing to a valid sub IFD
+                    // Prune sub IFD pointer-tags with non-existant sub IFDs
                     tag = tagsById[j];
                     if (this._pointsToSubIfd(tag) && !(tag.id in ifd.branches)) {
                         continue;
@@ -844,6 +953,7 @@ MD.TiffResource.prototype = {
                     if (this._isBrokenPair(tag.id, tagsById)) {
                         continue;
                     }
+                    // TODO: Check for missing id-pair data payload
                     prunedTags.push(tag);
                 }
             }
@@ -1030,9 +1140,9 @@ MD.TiffResource.prototype = {
     _extractData: function(reader, tagsById) {
         'use strict';
         // Loop through all know data payload ID pairs
-        var result = [];
-        for (var i = 0; i < MD.DATA_ID_PAIRS.length; i++) {
-            var pair = MD.DATA_ID_PAIRS[i];
+        var result = {};
+        for (var i in MD.KNOWN_PAIRS) {
+            var pair = MD.KNOWN_PAIRS[i];
             var tagPos = tagsById[pair.positionId];
             var tagLen = tagsById[pair.lengthId];
             // Verify we don't have any broken pairs
@@ -1051,12 +1161,12 @@ MD.TiffResource.prototype = {
                     dataList.push(reader.read(lengths[j]));
                 }
                 // Store data payload
-                result.push({
+                result[i] = {
                     positionId: pair.positionId,
                     lengthId: pair.lengthId,
-                    data: dataList 
-                });
-            } 
+                    data: dataList
+                };
+            }
         }
         // Return data payload array
         return result;
@@ -1108,16 +1218,13 @@ MD.TiffResource.prototype = {
         if (tag.type == MD.TIFF_TYPE_IFD) {
             return true;
         }
-        switch (tag.id) {
-            case MD.TIFF_ID_EXIFIFD:
-            case MD.TIFF_ID_GPSIFD:
-            case MD.TIFF_ID_INTEROPERABILITYIFD:
-            case MD.TIFF_ID_SUBIFDS:
+        for (var i in MD.KNOWN_SUBIFDS) {
+            if (tag.id == MD.KNOWN_SUBIFDS[i]) {
                 MD.check(tag.type == MD.TIFF_TYPE_LONG, 'Invalid sub IFD data type');
                 return true;
-            default: 
-                return false;
+            }
         }
+        return false;
     },
     
     //
@@ -1167,6 +1274,16 @@ MD.TiffResource.prototype = {
     // match the path (if they do not already exist)
     //
     _getTagsByPath: function(path, create) {
+        var ifd = this._getIfdByPath(path, create);
+        return ifd ? ifd.tags : undefined;
+    },
+    
+    //
+    // Get the IFD that matches the specified path. If the 'create' flag
+    // is set to true the function will create the internal structures required to 
+    // match the path (if they do not already exist)
+    //
+    _getIfdByPath: function(path, create) {
         'use strict';
         // Basic sanity check and path splitting
         MD.check(path && path.startsWith('/'), 'Invalid path: ' + path);
@@ -1197,9 +1314,9 @@ MD.TiffResource.prototype = {
             } else {
                 // Even components are sub IFD pointers
                 var id;
-                if (data.name in MD.SUBIFD_NAME_ID_MAPPING) {
+                if (data.name in MD.KNOWN_SUBIFDS) {
                     // Check if the sub IFD is adressed via its human-readable name
-                    id = MD.SUBIFD_NAME_ID_MAPPING[data.name];
+                    id = MD.KNOWN_SUBIFDS[data.name];
                 } else {
                     // ... otherwise use the numeric tag ID value
                     id = parseInt(data.name);
@@ -1226,7 +1343,7 @@ MD.TiffResource.prototype = {
             }
         }
         MD.check(ifd, 'Invalid path: ' + path + ', last component must be "ifd[N]"');
-        return ifd.tags;
+        return ifd;
     },
     
     //
@@ -1250,8 +1367,8 @@ MD.TiffResource.prototype = {
                 if (ifd.branches.hasOwnProperty(j)) {
                     var subTrunks = ifd.branches[j];
                     var branchName = j.toString();
-                    for (var name in MD.SUBIFD_NAME_ID_MAPPING) {
-                        if (MD.SUBIFD_NAME_ID_MAPPING[name] == j) {
+                    for (var name in MD.KNOWN_SUBIFDS) {
+                        if (MD.KNOWN_SUBIFDS[name] == j) {
                             branchName = name;
                             break;
                         }
@@ -1288,12 +1405,39 @@ MD.TiffResource.prototype = {
 // Photoshop resource codec class
 //
 MD.PhotoshopResource = function(buffer) {
+    this._tags = [];
     this._parse(buffer);
 };
 
 MD.PhotoshopResource.prototype = {
     
+    //
+    // PUBLIC METHODS
+    //
+    
     constructor: MD.PhotoshopResource,
+    
+    getTag: function(id) {
+        for (var i = 0; i < this._tags.length; i++) {
+            var tag = this._tags[i];
+            if (tag.id == id) {
+                return tag;
+            }
+        }
+        return undefined;
+    },
+    
+    setTag: function(tag) {
+        // TODO
+    },
+    
+    save: function() {
+        // TODO
+    },
+    
+    //
+    // PRIVATE METHODS
+    //
     
     _readPascalString: function(reader) {
         var len = reader.read8u();
@@ -1311,9 +1455,13 @@ MD.PhotoshopResource.prototype = {
             var id = reader.read16u();
             var name = this._readPascalString(reader);
             var size = reader.read32u();
-            size += (size % 2); // Note: Padding
-            console.log(id + ', ' + name + ', ' + size)
-            reader.position += size;
+            var data = reader.read(size);
+            reader.position += (size % 2);
+            this._tags.push({
+                id: id,
+                name: name,
+                data: data
+            });
         }
     }
 };
