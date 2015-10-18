@@ -934,7 +934,7 @@ MD.Tiff.prototype = {
         }
     },
     
-        //
+    //
     // Parse tiff structure (main entry point)
     //
     _parse: function(buffer) {
