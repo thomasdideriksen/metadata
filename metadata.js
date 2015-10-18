@@ -87,6 +87,11 @@ MD.TIFF_ID_TILEOFFSETS = 0x0144;
 MD.TIFF_ID_TILEBYTECOUNTS = 0x0145;
 
 //
+// Photoshop resource constants
+//
+MD.PHOTOSHOP_8BIM = 0x3842494d;
+
+//
 // Known tag pairs - these tag pairs indicates the position and 
 // size of a data payload. The codec must know about these in order
 // to properly extract and re-insert this data.
@@ -279,24 +284,24 @@ MD.BinaryWriter.prototype = {
 //
 // Jpeg metadata codec class
 //
-MD.Jpeg = function(buffer) {
+MD.JpegResource = function(buffer) {
     'use strict';
     this._segments = [];
     this._parse(buffer);
 };
 
-MD.Jpeg.prototype = {
+MD.JpegResource.prototype = {
     
     //
     // PUBLIC METHODS
     //
     
-    constructor: MD.Jpeg,
+    constructor: MD.JpegResource,
 
     //
     // Get the 'Adobe Tag' buffer
     //
-    getAdobeTagBuffer: function() {
+    getPhotoshopBuffer: function() {
         'use strict';
         return this._getSegmentDataSingle(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30);
     },
@@ -304,7 +309,7 @@ MD.Jpeg.prototype = {
     //
     // Set the 'Adobe Tag' buffer
     //
-    setAdobeTagBuffer: function() {
+    setPhotoshopBuffer: function() {
         // TODO
     },
     
@@ -344,7 +349,7 @@ MD.Jpeg.prototype = {
     //
     // Get embedded ICC profile
     //
-    getIccProfile: function() {
+    getIccBuffer: function() {
         'use strict';
         // Get ICC segments
         var iccSegments = this._findSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
@@ -387,7 +392,7 @@ MD.Jpeg.prototype = {
     //
     // Set embedded ICC profile
     //
-    setIccProfile: function(buffer) {
+    setIccBuffer: function(buffer) {
         'use strict';
         // Compute the number of segments needed to embed ICC profile
         var maxSize = 0xffff - MD.JPEG_HEADER_ICCPROFILE.length - 4;
@@ -559,20 +564,20 @@ MD.Jpeg.prototype = {
 //
 // Tiff metadata codec class
 //
-MD.Tiff = function(buffer) {
+MD.TiffResource = function(buffer) {
     'use strict';
     this._tree = [];
     this._nativeEndian = MD.LITTLE_ENDIAN;
     this._parse(buffer);
 };
 
-MD.Tiff.prototype = {
+MD.TiffResource.prototype = {
     
     //
     // PUBLIC METHODS
     //
     
-    constructor: MD.Tiff,
+    constructor: MD.TiffResource,
 
     //
     // Get the tag-array that matches the specified path
@@ -1275,6 +1280,40 @@ MD.Tiff.prototype = {
             if (idx >= 0) {
                 tags.splice(idx, 1);
             }
+        }
+    }
+};
+
+//
+// Photoshop resource codec class
+//
+MD.PhotoshopResource = function(buffer) {
+    this._parse(buffer);
+};
+
+MD.PhotoshopResource.prototype = {
+    
+    constructor: MD.PhotoshopResource,
+    
+    _readPascalString: function(reader) {
+        var len = reader.read8u();
+        var ascii = reader.readGeneric('getUint8', 1, 1, len);
+        if ((len + 1) % 2 == 1) {
+            reader.read8u(); // Note: Padding
+        }
+        return String.fromCharCode.apply(null, ascii);  
+    },
+    
+    _parse: function(buffer) {
+        var reader = new MD.BinaryReader(buffer, MD.BIG_ENDIAN);
+        while (reader.position < buffer.byteLength) {
+            MD.check(reader.read32u() == MD.PHOTOSHOP_8BIM, 'Invalid 8BIM signature');
+            var id = reader.read16u();
+            var name = this._readPascalString(reader);
+            var size = reader.read32u();
+            size += (size % 2); // Note: Padding
+            console.log(id + ', ' + name + ', ' + size)
+            reader.position += size;
         }
     }
 };
