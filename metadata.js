@@ -291,7 +291,12 @@ MD.Jpeg.prototype = {
         if (iccSegments.length === 0) {
             return undefined;
         }
-        // TODO: Sort by sequence number (and get rid of the checks below)
+        iccSegments.sort(function(a, b) {
+            var ra = new MD.BinaryReader(a.data, MD.LITTLE_ENDIAN);
+            var rb = new MD.BinaryReader(b.data, MD.LITTLE_ENDIAN);
+            ra.position = rb.position = MD.JPEG_HEADER_ICCPROFILE.length;
+            return ra.read8u() - rb.read8u();
+        });
         var i, size = 0;
         var iccSegment, reader;
         for (i = 0; i < iccSegments.length; i++) {
@@ -339,16 +344,16 @@ MD.Jpeg.prototype = {
                 data: iccBuffer
             });
         }
-        var lastApp0orApp1Idx = 0;
-        for (var i = 0; i < this._segments.length; i++) {
+        var i, lastApp0orApp1Idx = 0;
+        for (i = 0; i < this._segments.length; i++) {
             var segment = this._segments[i];
             if (segment.marker == MD.JPEG_MARKER_APP0 || segment.marker == MD.JPEG_MARKER_APP1) {
                 lastApp0orApp1Idx = i;
             }
         }
         var insertIdx = lastApp0orApp1Idx + 1;
-        for (var j = 0; j < iccSegments.length; j++) {
-            this._segments.splice(insertIdx, 0, iccSegments[j]);
+        for (i = 0; i < iccSegments.length; i++) {
+            this._segments.splice(insertIdx, 0, iccSegments[i]);
             insertIdx++;
         }
     },

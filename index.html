@@ -151,8 +151,24 @@
                 var blob = new Blob([buffer], {type: "application/octet-stream"});
                 saveAs(blob, name);
             }
-        
+            
             MD.get('im_large_icc.jpg', function(buf0) {
+            
+                MD.get('im.jpg', function(buf1) {
+
+                    var jpg0 = new MD.Jpeg(buf0);
+                    var jpg1 = new MD.Jpeg(buf1);
+                    
+                    jpg1.setIccProfile(jpg0.getIccProfile());
+                    var out = jpg1.save();
+                    
+                    //save(out, 'test2.jpg');
+                    
+                });
+            
+            });
+        
+            /*MD.get('im_large_icc.jpg', function(buf0) {
             
                 MD.get('im.jpg', function(buf1) {
                 
@@ -163,56 +179,21 @@
                     if (icc0) {
                         jpg1.setIccProfile(icc0);
                         var output = jpg1.save();
+                        //var jpg2 = new MD.Jpeg(output);
+                        //var icc2 = jpg2.getIccProfile();
+                        //console.log(icc0.byteLength);
+                        //console.log(icc2.byteLength);
+                        //save(icc2, 'roundtrip.icc');
+                        
                         save(output, 'result.jpg');
                     }
                 });
-            });
+            });*/
 
             
         
             
-            /*var file = 'im_large_icc.jpg';
-            MD.get(file, 
-                function(buffer) {
-                    var tiffBuffer = null;
-                    var jpeg = null;
-                    if (file.endsWith('.jpg')) {
-                        jpeg = new MD.Jpeg(buffer);
-                        tiffBuffer = jpeg.getExifBuffer();
-                        iccProfile = jpeg.getIccProfile();
-                        if (iccProfile) {
-                            jpeg.setIccProfile(iccProfile);
-                            var buf = jpeg.save();
-                            var blob = new Blob([buf], {type: "application/octet-stream"});
-                            saveAs(blob, "icc2.jpg");
-                            return;
-                        }
-                    } else {
-                        tiffBuffer = buffer;
-                    }
-                    var tiff = new MD.Tiff(tiffBuffer);
-                    var list = tiff.enumerate();                    
-                    emitTagTable(list, document.getElementById('tagTable'));
-                    emitDataTable(tiff.data, document.getElementById('dataTable'));
-                    
-                    tiff.addTag('/ifd[0]', {id: 0xff00, type: MD.TIFF_TYPE_ASCII, data: 'Thomas Lund Dideriksen'});
-                    tiff.addTag('/ifd[1]', {id: 0xff00, type: MD.TIFF_TYPE_ASCII, data: 'Another test'});
-                    
-                    var encoded = tiff.save(MD.LITTLE_ENDIAN);
-                    var dataToSave = encoded;
-                    
-                    
-                    if (file.endsWith('.jpg')) {
-                        jpeg.setExifBuffer(encoded);
-                        dataToSave = jpeg.save();
-                    } 
-    
-                    var blob = new Blob([dataToSave], {type: "application/octet-stream"});
-                    //saveAs(blob, "test.jpg");
-                },
-                function() {
-                    throw 'Failed to fetch image';
-                })*/
+          
         
         </script>
         
