@@ -291,6 +291,7 @@ MD.Jpeg.prototype = {
         if (iccSegments.length === 0) {
             return undefined;
         }
+        // TODO: Sort by sequence number (and get rid of the checks below)
         var i, size = 0;
         var iccSegment, reader;
         for (i = 0; i < iccSegments.length; i++) {
@@ -338,15 +339,17 @@ MD.Jpeg.prototype = {
                 data: iccBuffer
             });
         }
+        var lastApp0orApp1Idx = 0;
         for (var i = 0; i < this._segments.length; i++) {
             var segment = this._segments[i];
-            if (segment.marker != MD.JPEG_MARKER_APP0 && segment.marker != MD.JPEG_MARKER_APP1) {
-                MD.check(i >= 1, 'Invalid segment order');
-                for (var j = iccSegments.length - 1; j >= 0; j--) {
-                    this._segments.splice(i, 0, iccSegments[j]);
-                }
-                break;
+            if (segment.marker == MD.JPEG_MARKER_APP0 || segment.marker == MD.JPEG_MARKER_APP1) {
+                lastApp0orApp1Idx = i;
             }
+        }
+        var insertIdx = lastApp0orApp1Idx + 1;
+        for (var j = 0; j < iccSegments.length; j++) {
+            this._segments.splice(insertIdx, 0, iccSegments[j]);
+            insertIdx++;
         }
     },
     
