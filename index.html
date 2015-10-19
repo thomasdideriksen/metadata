@@ -36,7 +36,14 @@
             
             // Test 1
             MD.get('im_large_icc.jpg', function(buf) {
+                console.log('[ TEST 1 ]');
+                
+                console.log('Input');
+                console.log(buf);
+                
+                console.log('Primary jpeg');
                 var jpeg = new MD.JpegResource(buf);
+                console.log(jpeg);
               
                 if (jpeg.thumbnail) {
                     console.log('Embedded thumbnail');
@@ -68,8 +75,62 @@
                     jpeg.exif = exif.save();
                 }
                 
+                console.log('Re-serialized jpeg');
                 var output = jpeg.save();
+                console.log(output);
+                
                 //save(output, 'output.jpg');
+            });
+            
+            // Test 2
+            MD.get('im.tif', function(buf) {
+                console.log('\n');
+                console.log('[ TEST 2 ]');
+                
+                console.log('Input');
+                console.log(buf);
+                
+                console.log('Primary TIFF structure')
+                var tiff = new MD.TiffResource(buf);
+                console.log(tiff);
+                
+                console.log('Re-serialized TIFF structure')
+                var output = tiff.save();
+                console.log(output);
+            });
+            
+            // Test 3
+            MD.get('im.dng', function(buf) {
+                console.log('\n');
+                console.log('[ TEST 3 ]');
+                
+                console.log('Input');
+                console.log(buf);
+                
+                console.log('Primary DNG structure')
+                var tiff = new MD.TiffResource(buf);
+                console.log(tiff);
+                
+                console.log('Re-serialized TIFF structure')
+                var output = tiff.save();
+                console.log(output);
+            });
+            
+            // Test 4
+            MD.get('im.nef', function(buf) {
+                console.log('\n');
+                console.log('[ TEST 4 ]');
+                
+                console.log('Input');
+                console.log(buf);
+                
+                console.log('Primary DNG structure')
+                var tiff = new MD.TiffResource(buf);
+                console.log(tiff);
+                
+                console.log('Re-serialized TIFF structure')
+                var output = tiff.save();
+                console.log(output);
             });
             
         

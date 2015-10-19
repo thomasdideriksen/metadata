@@ -950,9 +950,15 @@ MD.TiffResource.prototype = {
     //
     // Check if the specifed id is part of a pair where the data payload is missing
     //
-    _isMissingDataPayload: function(id, tagsById, data) {
+    _isMissingDataPayload: function(id, data) {
         'use strict';
-        // TODO
+        for (var i in MD.KNOWN_PAIRS) {
+            var pair = MD.KNOWN_PAIRS[i];
+            if (pair.positionId == id || pair.lengthId == id) {
+                return !(i in data);
+            }
+        }
+        return false;
     },
     
     //
@@ -986,7 +992,7 @@ MD.TiffResource.prototype = {
                         continue;
                     }
                     // Prune id-pair tags if the corresponding data payload is missing
-                    if (this._isMissingDataPayload(tag.id, tagsById, ifd.data)) {
+                    if (this._isMissingDataPayload(tag.id, ifd.data)) {
                         continue;
                     }
                     prunedTags.push(tag);
@@ -1453,6 +1459,9 @@ MD.PhotoshopResource.prototype = {
     
     constructor: MD.PhotoshopResource,
     
+    //
+    // Get tag with specified ID
+    //
     getTag: function(id) {
         'use strict';
         for (var i = 0; i < this._tags.length; i++) {
@@ -1464,11 +1473,17 @@ MD.PhotoshopResource.prototype = {
         return undefined;
     },
     
+    //
+    // Set tag (will overwrite if tag already exists)
+    //
     setTag: function(tag) {
         'use strict';
         // TODO
     },
     
+    //
+    // Serialize (save) Photoshop 3.0 format
+    //
     save: function() {
         'use strict';
         var i, size = 0;
@@ -1499,6 +1514,9 @@ MD.PhotoshopResource.prototype = {
     // PRIVATE METHODS
     //
     
+    //
+    // Write pascal string
+    //
     _writePascalString: function(writer, str) {
         'use strict';
         MD.check(str.length <= 255, 'String is too long, it can not be represented as a Pascal string');
@@ -1511,6 +1529,9 @@ MD.PhotoshopResource.prototype = {
         }
     },
     
+    //
+    // Read pascal string
+    //
     _readPascalString: function(reader) {
         'use strict';
         var len = reader.read8u();
@@ -1521,6 +1542,9 @@ MD.PhotoshopResource.prototype = {
         return String.fromCharCode.apply(null, ascii);  
     },
     
+    //
+    // Parse (deserialize) Photoshop 3.0 format
+    //
     _parse: function(buffer) {
         'use strict';
         var reader = new MD.BinaryReader(buffer, MD.BIG_ENDIAN);
