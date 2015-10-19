@@ -700,6 +700,14 @@ MD.TiffResource.prototype = {
     },
     
     //
+    // Enumerate all named data-entries in the tiff tree
+    //
+    enumerateData: function() {
+        'use strict';
+        // TODO
+    },
+    
+    //
     // Get named data
     //
     getData: function(path, name) {
@@ -756,10 +764,6 @@ MD.TiffResource.prototype = {
             this._removeTag(ifd.tags, pair.positionId);
             this._removeTag(ifd.tags, pair.lengthId);
         }
-    },
-    
-    enumerateData: function() {
-        // TODO
     },
     
     //
@@ -947,7 +951,8 @@ MD.TiffResource.prototype = {
     // Check if the specifed id is part of a pair where the data payload is missing
     //
     _isMissingDataPayload: function(id, tagsById, data) {
-        
+        'use strict';
+        // TODO
     },
     
     //
@@ -1372,7 +1377,7 @@ MD.TiffResource.prototype = {
                 ifd = null;
             }
         }
-        MD.check(ifd, 'Invalid path: ' + path + ', last component must be "ifd[N]"');
+        MD.check(ifd, 'Invalid path: ' + path + ', last component must be "ifd[N]" where N is an integer >= 0');
         return ifd;
     },
     
