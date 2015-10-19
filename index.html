@@ -23,184 +23,66 @@
                 font-size: 12px;
                 color: #ffffff;
             }
-            .table {
-                border-collapse: collapse;
-            }
-            .table td, #table th {
-                border: 1px solid white;
-                white-space: nowrap;
-                padding: 2px 8px 2px 8px;
-            }
-            a {
-                color: #637ceb;
-            }
-            .header {
-                margin-top: 48px;
-                margin-bottom: 16px;
-                font-size: 14px;
-                font-weight: 700;
-                text-transform: uppercase;
-            }
         </style>
     </head>
     
     <body>
         <script>
-            function linkId(id) {
-                return '<a href="http://www.awaresystems.be/imaging/tiff/tifftags/search.html?q=' + id + '">' + id + '</a>';
-            }
-        
-            function emitTagTable(list, table) {
-                for (var i = 0; i < list.length; i++) {
-                     var row = table.insertRow();
-                     var cell0 = row.insertCell(0);
-                     var cell1 = row.insertCell(1);
-                     var cell2 = row.insertCell(2);
-                     var cell3 = row.insertCell(3);
-                     cell0.innerHTML = list[i].path;
-                     cell1.innerHTML = linkId(list[i].tag.id);
-                     var type = '';
-                     switch (list[i].tag.type) {
-                        case MD.TIFF_TYPE_BYTE: type = 'BYTE'; break;
-                        case MD.TIFF_TYPE_ASCII: type = 'ASCII'; break;
-                        case MD.TIFF_TYPE_SHORT: type = 'SHORT'; break;
-                        case MD.TIFF_TYPE_LONG: type = 'LONG'; break;
-                        case MD.TIFF_TYPE_RATIONAL: type = 'RATIONAL'; break;
-                        case MD.TIFF_TYPE_SBYTE: type = 'SBYTE'; break;
-                        case MD.TIFF_TYPE_UNDEFINED: type = 'UNDEFINED'; break;
-                        case MD.TIFF_TYPE_SSHORT: type = 'SSHORT'; break;
-                        case MD.TIFF_TYPE_SLONG: type = 'SLONG'; break;
-                        case MD.TIFF_TYPE_SRATIONAL: type = 'SRATIONAL'; break;
-                        case MD.TIFF_TYPE_FLOAT: type = 'FLOAT'; break;
-                        case MD.TIFF_TYPE_DOUBLE: type = 'DOUBLE'; break;
-                        case MD.TIFF_TYPE_IFD: type = 'IFD'; break;
-                        default: type = 'Unknown (' + list[i].tag.type + ')'; break;
-                     }
-                     cell2.innerHTML = type;
-                     var dataToShow = '';
-                     var data = list[i].tag.data;
-                     if (data instanceof Array) {
-                        var showCount = 8;
-                        var truncate = data.length > showCount;
-                        for (var j = 0; j < Math.min(data.length, showCount); j++) {
-                            dataToShow += data[j];
-                            if (j < data.length) {
-                                dataToShow += ', ';
-                            }
-                        }
-                        if (truncate) {
-                            dataToShow += '(' + (data.length - showCount) + ' more)';
-                        }
-                     } else {
-                        dataToShow = data;
-                     }
-                     cell3.innerHTML = dataToShow;
-                }
-            }
-            
-            function emitDataTable(data, table) {
-                for (var path in data) {
-                    var dataForPath = data[path];
-                    for (var i = 0; i < dataForPath.length; i++) {
-                        var dataForTag = dataForPath[i];
-                        for (var j = 0; j < dataForTag.data.length; j++) {
-                            
-                            var row = table.insertRow();
-                            var cell0 = row.insertCell(0);
-                            var cell1 = row.insertCell(1);
-                            var cell2 = row.insertCell(2);
-                            var cell3 = row.insertCell(3);
-                            var cell4 = row.insertCell(4);
-                            
-                            cell0.innerHTML = path;
-                            cell1.innerHTML = (dataForTag.data[j].byteLength / 1024).toFixed(1) + 'KB';
-                            cell2.innerHTML = linkId(dataForTag.positionTag.id);
-                            cell3.innerHTML = linkId(dataForTag.lengthTag.id);
-                            
-                            var uint8 = new Uint8Array(dataForTag.data[j]);
-                            if (uint8[0] == 0xff && uint8[1] == 0xd8 && uint8[2] == 0xff && uint8[3] != 0xc3) {
-                                (function(buffer, cell) {
-                                    var worker = new Worker('worker.js');
-                                    worker.onmessage = function(msg) {
-                                        var div = document.createElement('div');
-                                        div.innerHTML = 'Loading...';
-                                        cell.appendChild(div);
-                                        var im = document.createElement('img');
-                                        im.onload = function() {
-                                            cell.removeChild(div);
-                                            cell.appendChild(im);
-                                            div.innerHTML = im.width + ' x ' + im.height;
-                                            cell.appendChild(div);
-                                            im.style.width = Math.min(im.width, 640) + 'px';
-                                        }
-                                        im.onerror = function() {
-                                            cell.removeChild(div);
-                                        }
-                                        im.src = 'data:image/jpg;base64,' + msg.data;
-                                    }
-                                    worker.postMessage(uint8);
-                                })(uint8, cell4);
-                            }
-                        }
-                    }
-                }
-            }
-            
             
             function save(buffer, name) {
                 var blob = new Blob([buffer], {type: "application/octet-stream"});
                 saveAs(blob, name);
             }
             
-            MD.get('im_large_icc.jpg', function(buf0) {
-            
-                MD.get('im.jpg', function(buf1) {
-
-                    var jpg0 = new MD.Jpeg(buf0);
-                    var jpg1 = new MD.Jpeg(buf1);
-                    
-                    jpg1.setIccProfile(jpg0.getIccProfile());
-                    var out = jpg1.save();
-                    
-                    //save(out, 'test2.jpg');
-                    
-                });
-            
-            });
-        
-            /*MD.get('im_large_icc.jpg', function(buf0) {
-            
-                MD.get('im.jpg', function(buf1) {
+            // Test 1
+            MD.get('im.jpg', function(buf) {
+                var jpeg = new MD.JpegResource(buf);
                 
-                    var jpg0 = new MD.Jpeg(buf0);
-                    var jpg1 = new MD.Jpeg(buf1);
-                    
-                    var icc0 = jpg0.getIccProfile();
-                    if (icc0) {
-                        jpg1.setIccProfile(icc0);
-                        var output = jpg1.save();
-                        //var jpg2 = new MD.Jpeg(output);
-                        //var icc2 = jpg2.getIccProfile();
-                        //console.log(icc0.byteLength);
-                        //console.log(icc2.byteLength);
-                        //save(icc2, 'roundtrip.icc');
-                        
-                        save(output, 'result.jpg');
-                    }
-                });
-            });*/
-
+                if (!jpeg) {
+                    return;
+                }
             
-        
+                console.log('Extract Thumbnail');
+                var thumbBuf = jpeg.getThumbnailBuffer();
+                if (thumbBuf) {
+                    var thumbJpeg = new MD.JpegResource(thumbBuf);
+                    console.log(thumbJpeg);
+                }
+                
+                console.log('Extract EXIF segment');
+                var exifBuf = jpeg.getExifBuffer();
+                if (exifBuf) {
+                    var exif = new MD.TiffResource(exifBuf);
+                    console.log(exif);
+                }
+                
+                console.log('Extract Photoshop 3.0 segment');
+                var photoshopBuf = jpeg.getPhotoshopBuffer();
+                if (photoshopBuf) {
+                    var photoshop = new MD.PhotoshopResource(photoshopBuf);
+                    console.log(photoshop);
+                }
+                
+                console.log('Extract ICC profile');
+                var iccBuf = jpeg.getIccBuffer();
+                if (iccBuf) {
+                    console.log(iccBuf);
+                }
+                
+                if (exif) {
+                    console.log('Modify and re-insert EXIF segment');
+                    var tag = exif.getTag('/ifd[0]', 0x110);
+                    tag.data = 'This is a test :)';
+                    jpeg.setExifBuffer(exif.save());
+                }
+                
+                var output = jpeg.save();
+                save(output, 'output.jpg');
+            });
             
-          
         
         </script>
         
-        <div class='header' style='margin-top: 0px';>TIFF/EXIF Tags</div>
-        <table id='tagTable' class='table'></table>
-        <div class='header'>TIFF/EXIF Referenced Data</div>
-        <table id='dataTable' class='table'></table>
     </body>
 
 </html>
