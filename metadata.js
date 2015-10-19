@@ -78,13 +78,13 @@ MD.TIFF_ID_EXIFIFD = 0x8769;
 MD.TIFF_ID_GPSIFD = 0x8825;
 MD.TIFF_ID_INTEROPERABILITYIFD = 0xA005;
 MD.TIFF_ID_SUBIFDS = 0x014A;
-MD.TIFF_ID_RICHTIFFIPTC = 0x83BB;
 MD.TIFF_ID_JPEGINTERCHANGEFORMAT = 0x0201;
 MD.TIFF_ID_JPEGINTERCHANGEFORMATLENGTH = 0x0202;
 MD.TIFF_ID_STRIPOFFSETS = 0x0111;
 MD.TIFF_ID_STRIPBYTECOUNTS = 0x0117;
 MD.TIFF_ID_TILEOFFSETS = 0x0144;
 MD.TIFF_ID_TILEBYTECOUNTS = 0x0145;
+MD.TIFF_ID_RICHTIFFIPTC = 0x83BB;
 
 //
 // Photoshop resource constants
@@ -303,7 +303,7 @@ MD.JpegResource.prototype = {
     //
     // Get 'Photoshop 3.0' buffer
     //
-    getPhotoshopBuffer: function() {
+    get photoshop() {
         'use strict';
         return this._getSegmentDataSingle(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30);
     },
@@ -311,13 +311,13 @@ MD.JpegResource.prototype = {
     //
     // Set 'Photoshop 3.0' buffer
     //
-    setPhotoshopBuffer: function(buffer) {
+    set photoshop(buffer) {
         'use strict';
-        // Create new Photoshop 3.0 segment
-        var photoshopSegment = this._createSegment(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30, buffer);
-        // Remove incompatible segments
         this._removeSegments(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30);
-        // Insert segment
+        if (!buffer) {
+            return;
+        }
+        var photoshopSegment = this._createSegment(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30, buffer);
         var insertIdx = this._lastSegmentIndex([MD.JPEG_MARKER_APP0, MD.JPEG_MARKER_APP1]) + 1;
         this._segments.splice(insertIdx, 0, photoshopSegment);
     },
@@ -325,7 +325,7 @@ MD.JpegResource.prototype = {
     //
     // Get EXIF buffer
     //
-    getExifBuffer: function() {
+    get exif() {
         'use strict';
         return this._getSegmentDataSingle(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
     },
@@ -333,22 +333,22 @@ MD.JpegResource.prototype = {
     //
     // Set EXIF buffer
     //
-    setExifBuffer: function(buffer) {
+    set exif(buffer) {
         'use strict';
-        // Create new EXIF segment
-        var exifSegment = this._createSegment(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF, buffer);
-        // Remove incompatible segments
         this._removeSegments(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
+        if (!buffer) {
+            return;
+        }
+        var exifSegment = this._createSegment(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF, buffer);
         this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFIF);
         this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFXX);
-        // Insert new EXIF segment at the front of the segment list
         this._segments.unshift(exifSegment);
     },
     
     //
     // Get embedded ICC profile
     //
-    getIccBuffer: function() {
+    get iccProfile() {
         'use strict';
         // Get ICC segments
         var iccSegments = this._findSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
@@ -391,14 +391,17 @@ MD.JpegResource.prototype = {
     //
     // Set embedded ICC profile
     //
-    setIccBuffer: function(buffer) {
+    set iccProfile(buffer) {
         'use strict';
+        // Remove existing ICC profile (if present)
+        this._removeSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
+        if (!buffer) {
+            return;
+        }
         // Compute the number of segments needed to embed ICC profile
         var maxSize = 0xffff - MD.JPEG_HEADER_ICCPROFILE.length - 4;
         var segmentCount = Math.ceil(buffer.byteLength / maxSize);
         MD.check(segmentCount <= 255, 'ICC profile is too large');
-        // Remove existing ICC profile (if present)
-        this._removeSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
         // Create ICC profile segments
         var reader = new MD.BinaryReader(buffer);
         var iccSegments = [];
@@ -427,13 +430,12 @@ MD.JpegResource.prototype = {
     },
     
     //
-    // Helper function for getting the embedded thumbnail
+    // Get embedded jpeg thumbnail
     //
-    getThumbnailBuffer: function() {
+    get thumbnail() {
         // First, attempt to get the thumbnail from the Photoshop segment
-        var photoshopBuf = this.getPhotoshopBuffer();
-        if (photoshopBuf) {
-            var photoshop = new MD.PhotoshopResource(photoshopBuf);
+        if (this.photoshop) {
+            var photoshop = new MD.PhotoshopResource(this.photoshop);
             var thumb = photoshop.getTag(MD.PHOTOSHOP_ID_THUMB5);
             if (!thumb) {
                 thumb = photoshop.getTag(MD.PHOTOSHOP_ID_THUMB4);
@@ -455,8 +457,7 @@ MD.JpegResource.prototype = {
             } 
         }
         // Otherwise attempt to get the legacy thumbnail from IFD1
-        var exifBuf = this.getExifBuffer();
-        if (exifBuf) {
+        if (this.exif) {
             var exif = new MD.TiffResource(exifBuf);
             var data = exif.getData('/ifd[1]', 'jpeginterchangeformat');
             return (data && data.length == 1) ? data[0] : undefined;
