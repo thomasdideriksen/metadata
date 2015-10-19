@@ -301,7 +301,7 @@ MD.JpegResource.prototype = {
     constructor: MD.JpegResource,
 
     //
-    // Get the 'Adobe Tag' buffer
+    // Get 'Photoshop 3.0' buffer
     //
     getPhotoshopBuffer: function() {
         'use strict';
@@ -309,10 +309,17 @@ MD.JpegResource.prototype = {
     },
     
     //
-    // Set the 'Adobe Tag' buffer
+    // Set 'Photoshop 3.0' buffer
     //
-    setPhotoshopBuffer: function() {
-        // TODO
+    setPhotoshopBuffer: function(buffer) {
+        'use strict';
+        // Create new Photoshop 3.0 segment
+        var photoshopSegment = this._createSegment(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30, buffer);
+        // Remove incompatible segments
+        this._removeSegments(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30);
+        // Insert segment
+        var insertIdx = this._lastSegmentIndex([MD.JPEG_MARKER_APP0, MD.JPEG_MARKER_APP1]) + 1;
+        this._segments.splice(insertIdx, 0, photoshopSegment);
     },
     
     //
@@ -328,24 +335,14 @@ MD.JpegResource.prototype = {
     //
     setExifBuffer: function(buffer) {
         'use strict';
-        // Compute and verify segment size
-        var segmentSize = buffer.byteLength + MD.JPEG_HEADER_EXIF.length;
-        MD.check(segmentSize <= (0xffff - 2), 'EXIF buffer is too large');
+        // Create new EXIF segment
+        var exifSegment = this._createSegment(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF, buffer);
         // Remove incompatible segments
+        this._removeSegments(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
         this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFIF);
         this._removeSegments(MD.JPEG_MARKER_APP0, MD.JPEG_HEADER_JFXX);
-        this._removeSegments(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
-        // Create segment
-        var segmentData = new ArrayBuffer(segmentSize);
-        var writer = new MD.BinaryWriter(segmentData);
-        writer.write(new Uint8Array(MD.JPEG_HEADER_EXIF).buffer);
-        writer.write(buffer);
-        var segment = {
-            marker: MD.JPEG_MARKER_APP1,
-            data: segmentData
-        };
         // Insert new EXIF segment at the front of the segment list
-        this._segments.unshift(segment);
+        this._segments.unshift(exifSegment);
     },
     
     //
@@ -421,16 +418,8 @@ MD.JpegResource.prototype = {
                 data: iccBuffer
             });
         }
-        // Find location in segment array where the ICC profile segments will be inserted
-        var i, lastApp0orApp1Idx = 0;
-        for (i = 0; i < this._segments.length; i++) {
-            var segment = this._segments[i];
-            if (segment.marker == MD.JPEG_MARKER_APP0 || segment.marker == MD.JPEG_MARKER_APP1) {
-                lastApp0orApp1Idx = i;
-            }
-        }
-        var insertIdx = lastApp0orApp1Idx + 1;
         // Insert ICC profile segments in segment array
+        var insertIdx = this._lastSegmentIndex([MD.JPEG_MARKER_APP0, MD.JPEG_MARKER_APP1]) + 1;
         for (i = 0; i < iccSegments.length; i++) {
             this._segments.splice(insertIdx, 0, iccSegments[i]);
             insertIdx++;
@@ -441,7 +430,7 @@ MD.JpegResource.prototype = {
     // Helper function for getting the embedded thumbnail
     //
     getThumbnailBuffer: function() {
-        // First attempt to get the thumbnail in the Photoshop segment
+        // First, attempt to get the thumbnail from the Photoshop segment
         var photoshopBuf = this.getPhotoshopBuffer();
         if (photoshopBuf) {
             var photoshop = new MD.PhotoshopResource(photoshopBuf);
@@ -459,17 +448,18 @@ MD.JpegResource.prototype = {
                 var compressedSize = reader.read32u();
                 var bitsPerPixel = reader.read16u();
                 var numberOfPlanes = reader.read16u();
-                if (format == 1) {
+                // We only support jpeg compressed thumbnails for now. (0 = uncompressed, 1 = jpeg)
+                if (format == 1 ) {
                     return reader.readRemaining();
                 }
             } 
         }
-        // Otherwise attempt to get the legacy thumbnail in IFD1
+        // Otherwise attempt to get the legacy thumbnail from IFD1
         var exifBuf = this.getExifBuffer();
         if (exifBuf) {
             var exif = new MD.TiffResource(exifBuf);
             var data = exif.getData('/ifd[1]', 'jpeginterchangeformat');
-            return (data.length == 1) ? data[0] : undefined;
+            return (data && data.length == 1) ? data[0] : undefined;
         }
         return undefined;
     },
@@ -513,7 +503,7 @@ MD.JpegResource.prototype = {
     //
     
     //
-    // Jpeg parser, splits the jpeg into individual segments
+    // Jpeg parser, this will extract the individual jpeg segments
     //
     _parse: function(buffer) {
         'use strict';
@@ -538,6 +528,22 @@ MD.JpegResource.prototype = {
                 break;
             }
         }
+    },
+    
+    //
+    // Finds the last position (index) of the specified marker type(s)
+    //
+    _lastSegmentIndex: function(markers) {
+        var idx = 0;
+        for (var i = 0; i < this._segments.length; i++) {
+            var segment = this._segments[i];
+            for (var j = 0; j < markers.length; j++) {
+                if (segment.marker == markers[j]) {
+                    idx = i;
+                }
+            }
+        }
+        return idx;
     },
     
     //
@@ -593,10 +599,30 @@ MD.JpegResource.prototype = {
             case 0: return undefined;
             case 1:
                 var reader = new MD.BinaryReader(segments[0].data);
-                reader.position = header.length;
+                reader.position = header ? header.length : 0;
                 return reader.readRemaining();
             default: throw 'Too many segments';
         }
+    },
+    
+    //
+    // Create a segment buffer
+    //
+    _createSegment(marker, header, payload) {
+        'use strict';
+        // Compute and verify segment size
+        var segmentSize = payload.byteLength + header.length;
+        MD.check(segmentSize <= (0xffff - 2), 'Segment buffer is too large');
+        // Create segment
+        var segmentData = new ArrayBuffer(segmentSize);
+        var writer = new MD.BinaryWriter(segmentData);
+        writer.write(new Uint8Array(header).buffer);
+        writer.write(payload);
+        var segment = {
+            marker: marker,
+            data: segmentData
+        };
+        return segment;
     }
 };
 
@@ -920,7 +946,7 @@ MD.TiffResource.prototype = {
     // Check if the specifed id is part of a pair where the data payload is missing
     //
     _isMissingDataPayload: function(id, tagsById, data) {
-        // TODO
+        
     },
     
     //
@@ -944,8 +970,8 @@ MD.TiffResource.prototype = {
             var prunedTags = [];
             for (j in  tagsById) {
                 if (tagsById.hasOwnProperty(j)) {
-                    // Prune sub IFD pointer-tags with non-existant sub IFDs
                     tag = tagsById[j];
+                    // Prune sub IFD pointer-tags with non-existant sub IFDs
                     if (this._pointsToSubIfd(tag) && !(tag.id in ifd.branches)) {
                         continue;
                     }
@@ -953,7 +979,10 @@ MD.TiffResource.prototype = {
                     if (this._isBrokenPair(tag.id, tagsById)) {
                         continue;
                     }
-                    // TODO: Check for missing id-pair data payload
+                    // Prune id-pair tags if the corresponding data payload is missing
+                    if (this._isMissingDataPayload(tag.id, tagsById, ifd.data)) {
+                        continue;
+                    }
                     prunedTags.push(tag);
                 }
             }
@@ -1405,6 +1434,7 @@ MD.TiffResource.prototype = {
 // Photoshop resource codec class
 //
 MD.PhotoshopResource = function(buffer) {
+    'use strict';
     this._tags = [];
     this._parse(buffer);
 };
@@ -1418,6 +1448,7 @@ MD.PhotoshopResource.prototype = {
     constructor: MD.PhotoshopResource,
     
     getTag: function(id) {
+        'use strict';
         for (var i = 0; i < this._tags.length; i++) {
             var tag = this._tags[i];
             if (tag.id == id) {
@@ -1428,18 +1459,54 @@ MD.PhotoshopResource.prototype = {
     },
     
     setTag: function(tag) {
+        'use strict';
         // TODO
     },
     
     save: function() {
-        // TODO
+        'use strict';
+        var i, size = 0;
+        for (i = 0; i < this._tags.length; i++) {
+            var tag = this._tags[i];
+            var nameLength = tag.name.length + 1;
+            nameLength += (nameLength % 2);
+            var dataLength = tag.data.byteLength;
+            dataLength += (dataLength % 2);
+            size += 4 + 2 + nameLength + 4 + dataLength; 
+        }
+        var result = new ArrayBuffer(size);
+        var writer = new MD.BinaryWriter(result, MD.BIG_ENDIAN);
+        for (i = 0; i< this._tags.length; i++) {
+            var tag = this._tags[i];
+            writer.write32u(MD.PHOTOSHOP_8BIM);
+            writer.write16u(tag.id);
+            this._writePascalString(writer, tag.name);
+            writer.write32u(tag.data.byteLength);
+            if (tag.data.byteLength % 2 == 1) {
+                writer.write8u(0);
+            }
+        }
+        return result;
     },
     
     //
     // PRIVATE METHODS
     //
     
+    _writePascalString: function(writer, str) {
+        'use strict';
+        MD.check(str.length <= 255, 'String is too long, it can not be represented as a Pascal string');
+        writer.write8u(str.length);
+        for (var i = 0; i < str.length; i++) {
+            writer.write8u(str.charCodeAt(i));
+        }
+        if (str.length + 1 % 2 == 1) {
+            writer.write8u(0); // Note: Padding
+        }
+    },
+    
     _readPascalString: function(reader) {
+        'use strict';
         var len = reader.read8u();
         var ascii = reader.readGeneric('getUint8', 1, 1, len);
         if ((len + 1) % 2 == 1) {
@@ -1449,6 +1516,7 @@ MD.PhotoshopResource.prototype = {
     },
     
     _parse: function(buffer) {
+        'use strict';
         var reader = new MD.BinaryReader(buffer, MD.BIG_ENDIAN);
         while (reader.position < buffer.byteLength) {
             MD.check(reader.read32u() == MD.PHOTOSHOP_8BIM, 'Invalid 8BIM signature');
