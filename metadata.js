@@ -695,7 +695,14 @@ MD.TiffResource.prototype = {
     enumerateTags: function() {
         'use strict';
         var list = [];
-        this._enumerateRecursive(this._tree, list, '');
+        this._enumerateRecursive(this._tree, '', function(path, ifd) {
+            for (var i = 0; i < ifd.tags.length; i++) {
+                list.push({
+                    path: path,
+                    tag: ifd.tags[i]
+                });
+            }
+        });
         return list;
     },
     
@@ -704,7 +711,17 @@ MD.TiffResource.prototype = {
     //
     enumerateData: function() {
         'use strict';
-        // TODO
+        var list = [];
+        this._enumerateRecursive(this._tree, '', function(path, ifd) {
+            for (var i in ifd.data) {
+                list.push({
+                    path: path,
+                    name: i,
+                    data: ifd.data[i].data
+                });
+            }
+        });
+        return list;
     },
     
     //
@@ -1390,19 +1407,13 @@ MD.TiffResource.prototype = {
     //
     // Helper function for (recursively) enumerating the entire tiff tree
     //
-    _enumerateRecursive: function(trunk, list, path) {
+    _enumerateRecursive: function(trunk, path, callback) {
         'use strict';
         // Loop through the IFDs in the trunk
         for (var i = 0; i < trunk.length; i++) {
             var newPath = path + '/ifd[' + i + ']';
             var j, ifd = trunk[i];
-            // Loop through the tags in the IFD
-            for (j = 0; j < ifd.tags.length; j++) {
-                list.push({
-                    path: newPath,
-                    tag: ifd.tags[j]    
-                });
-            }
+            callback(newPath, ifd);
             // Enumerate branches recursively
             for (j in ifd.branches) {
                 if (ifd.branches.hasOwnProperty(j)) {
@@ -1415,7 +1426,7 @@ MD.TiffResource.prototype = {
                         }
                     }
                     for (var k = 0; k < subTrunks.length; k++) {
-                        this._enumerateRecursive(subTrunks[k], list, newPath + '/' + branchName + '[' + k + ']');
+                        this._enumerateRecursive(subTrunks[k], newPath + '/' + branchName + '[' + k + ']', callback);
                     }
                 }
             }

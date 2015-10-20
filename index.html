@@ -69,6 +69,10 @@
                 }
                 
                 if (exif) {
+                    var tagList = exif.enumerateTags();
+                    console.log('EXIF: Found ' + tagList.length + ' tag(s)');
+                    var dataList = exif.enumerateData();
+                    console.log('EXIF: Found ' + dataList.length + ' data payload(s)');
                     console.log('Modify EXIF segment');
                     var tag = exif.getTag('/ifd[0]', 0x110);
                     tag.data = 'This is a test :)';
