@@ -902,7 +902,7 @@ MD.TiffResource.prototype = {
         for (var i = 0; i < trunk.length; i++) {
             var ifd = trunk[i];
             if (ifd.data) {
-                for (var j = 0; j < ifd.data.length; j++) {
+                for (var j in ifd.data) {
                     var chunk = ifd.data[j];
                     var offsetLen = dataOffsets[i][chunk.lengthId];
                     var offsetPos = dataOffsets[i][chunk.positionId];
@@ -1071,7 +1071,7 @@ MD.TiffResource.prototype = {
             // Size contributes from data payloads (id-pairs)
             sizes.layoutSize += 4;
             if (ifd.data) {
-                for (j = 0; j < ifd.data.length; j++) {
+                for (j in ifd.data) {
                     for (k = 0; k < ifd.data[j].data.length; k++) {
                         dataSize = ifd.data[j].data[k].byteLength;
                         sizes.payloadSize += dataSize + (dataSize % 2); // Note: Padding
