@@ -42,7 +42,7 @@ Change the 'Software' tag in a jpeg file:
 ```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 var exif = new MD.TiffResource(jpeg.exifBuffer);
-exif.addTag({
+exif.setTag('/ifd[0]', {
   id: 0x0131,
   type: MD.TIFF_TYPE_ASCII,
   data: 'My custom software'
