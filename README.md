@@ -2,7 +2,7 @@
 
 Metadata.js is a compact, self-contained Javascript library for reading and writing image metadata. The library currently supports:
 
-* JPEG and TIFF images
+* JPEG and TIFF images (including TIFF derivatives such as DNG, NEF, etc.)
 * EXIF metadata
 * Photoshop/8BIM metadata
 * Embedded thumbnails
