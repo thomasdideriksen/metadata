@@ -16,12 +16,10 @@ The library operates on data in-memory, specifically using [ArrayBuffers](https:
 Get the camera model name from a jpeg file:
 ```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
-if (jpeg.exifBuffer) {
-  var exif = new MD.TiffResource(jpeg.exifBuffer);
-  var cameraModelTag = exif.getTag('/ifd[0]', 0x0110);
-  if (cameraModelTag) {
-    console.log(cameraModelTag.data);
-  }
+var exif = new MD.TiffResource(jpeg.exifBuffer);
+var cameraModelTag = exif.getTag('/ifd[0]', 0x0110);
+if (cameraModelTag) {
+  console.log(cameraModelTag.data);
 }
 ```
 
@@ -38,16 +36,14 @@ if (jpeg.thumbnailBuffer) {
 Enumerate all EXIF tags in a jpeg file:
 ```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
-if (jpeg.exifBuffer) {
-  var exif = new MD.TiffResource(jpeg.exifBuffer);
-  var allTags = exif.enumerateTags();
-  for (var i = 0; i < allTags.length; i++) {
-    var entry = allTags[i];
-    console.log('Path    : ' + entry.path);
-    console.log('Tag ID  : 0x' + entry.tag.id.toString(16));
-    console.log('Tag type: ' + entry.tag.type);
-    console.log('Tag data: ' + entry.tag.data);
-  }
+var exif = new MD.TiffResource(jpeg.exifBuffer);
+var allTags = exif.enumerateTags();
+for (var i = 0; i < allTags.length; i++) {
+  var entry = allTags[i];
+  console.log('Path    : ' + entry.path);
+  console.log('Tag ID  : 0x' + entry.tag.id.toString(16));
+  console.log('Tag type: ' + entry.tag.type);
+  console.log('Tag data: ' + entry.tag.data);
 }
 ```  
 
