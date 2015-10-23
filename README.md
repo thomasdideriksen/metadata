@@ -51,7 +51,7 @@ if (jpeg.exifBuffer) {
 }
 ```  
 
-Change the 'Software' tag in a jpeg file:
+Set the 'Software' tag in a jpeg file and save the result:
 ```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 var exif = new MD.TiffResource(jpeg.exifBuffer);
