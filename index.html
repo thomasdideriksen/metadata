@@ -26,116 +26,132 @@
         </style>
     </head>
     
-    <body>
+    <body onload='run()'>
         <script>
             
-            function save(buffer, name) {
-                var blob = new Blob([buffer], {type: "application/octet-stream"});
-                saveAs(blob, name);
+            function run() {
+            
+                function save(buffer, name) {
+                    var blob = new Blob([buffer], {type: "application/octet-stream"});
+                    saveAs(blob, name);
+                }
+                
+                // Test 1
+                MD.get('im.jpg', function(buf) {
+                    console.log('[ TEST 1 ]');
+                    
+                    console.log('Input');
+                    console.log(buf);
+                    
+                    console.log('Primary jpeg');
+                    var jpeg = new MD.JpegResource(buf);
+                    console.log(jpeg);
+                  
+                    console.log(jpeg.thumbnailBuffer);
+                    if (jpeg.thumbnailBuffer) {
+                        console.log('Embedded thumbnail');
+                        var thumbJpeg = new MD.JpegResource(jpeg.thumbnailBuffer);
+                        console.log(thumbJpeg);
+                        
+                        var img = document.createElement('img');
+                        img.src = MD.toDataURL(jpeg.thumbnailBuffer, 'image/jpeg');
+                        document.body.appendChild(img);
+                    }
+                    
+                    if (jpeg.exifBuffer) {
+                        console.log('EXIF segment');
+                        var exif = new MD.TiffResource(jpeg.exifBuffer);
+                        console.log(exif);
+                    }
+                    
+                    if (jpeg.photoshopBuffer) {
+                        console.log('Photoshop 3.0 segment');
+                        var photoshop = new MD.PhotoshopResource(jpeg.photoshopBuffer);
+                        console.log(photoshop);
+                    }
+                    
+                    if (jpeg.iccProfileBuffer) {
+                        console.log('ICC profile');
+                        console.log(jpeg.iccProfileBuffer);
+                    }
+                    
+                    if (exif) {
+                        var tagList = exif.enumerateTags();
+                        console.log('EXIF: Found ' + tagList.length + ' tag(s)');
+                        var dataList = exif.enumerateData();
+                        console.log('EXIF: Found ' + dataList.length + ' data payload(s)');
+                        console.log('Modify EXIF segment');
+                        var tag = exif.getTag('/ifd[0]', 0x110);
+                        console.log('Model: ' + tag.data);
+                        tag.data = 'This is a test :)';
+                        jpeg.exif = exif.save();
+                    }
+                    
+                    console.log('Re-serialized jpeg');
+                    var output = jpeg.save();
+                    console.log(output);
+                    
+                    //save(output, 'output.jpg');
+                });
+                
+                // Test 2
+                MD.get('im.tif', function(buf) {
+                    console.log('\n');
+                    console.log('[ TEST 2 ]');
+                    
+                    console.log('Input');
+                    console.log(buf);
+                    
+                    console.log('Primary TIFF structure')
+                    var tiff = new MD.TiffResource(buf);
+                    console.log(tiff);
+                    
+                    console.log('Re-serialized TIFF structure')
+                    var output = tiff.save();
+                    console.log(output);
+                });
+                
+                // Test 3
+                MD.get('im.dng', function(buf) {
+                    console.log('\n');
+                    console.log('[ TEST 3 ]');
+                    
+                    console.log('Input');
+                    console.log(buf);
+                    
+                    console.log('Primary DNG structure')
+                    var tiff = new MD.TiffResource(buf);
+                    console.log(tiff);
+                    
+                    console.log('Re-serialized TIFF structure')
+                    var output = tiff.save();
+                    console.log(output);
+                });
+                
+                // Test 4
+                MD.get('im.nef', function(buf) {
+                    console.log('\n');
+                    console.log('[ TEST 4 ]');
+                    
+                    console.log('Input');
+                    console.log(buf);
+                    
+                    console.log('Primary NEF structure')
+                    var tiff = new MD.TiffResource(buf);
+                    console.log(tiff);
+                    
+                    var tags = tiff.enumerateTags();
+                    for (var i = 0; i < tags.length; i++) {
+                        var tag = tags[i].tag;
+                        //document.body.innerHTML += '0x' + tag.id.toString(16);
+                        //document.body.innerHTML += ', ' + tag.data + '<br>';
+                    }
+                    
+                    console.log('Re-serialized TIFF structure')
+                    var output = tiff.save();
+                    console.log(output);
+                });
             }
-            
-            // Test 1
-            MD.get('im_large_icc.jpg', function(buf) {
-                console.log('[ TEST 1 ]');
-                
-                console.log('Input');
-                console.log(buf);
-                
-                console.log('Primary jpeg');
-                var jpeg = new MD.JpegResource(buf);
-                console.log(jpeg);
-              
-                if (jpeg.thumbnail) {
-                    console.log('Embedded thumbnail');
-                    var thumbJpeg = new MD.JpegResource(jpeg.thumbnail);
-                    console.log(thumbJpeg);
-                }
-                
-                if (jpeg.exif) {
-                    console.log('EXIF segment');
-                    var exif = new MD.TiffResource(jpeg.exif);
-                    console.log(exif);
-                }
-                
-                if (jpeg.photoshop) {
-                    console.log('Photoshop 3.0 segment');
-                    var photoshop = new MD.PhotoshopResource(jpeg.photoshop);
-                    console.log(photoshop);
-                }
-                
-                if (jpeg.iccProfile) {
-                    console.log('ICC profile');
-                    console.log(jpeg.iccProfile);
-                }
-                
-                if (exif) {
-                    var tagList = exif.enumerateTags();
-                    console.log('EXIF: Found ' + tagList.length + ' tag(s)');
-                    var dataList = exif.enumerateData();
-                    console.log('EXIF: Found ' + dataList.length + ' data payload(s)');
-                    console.log('Modify EXIF segment');
-                    var tag = exif.getTag('/ifd[0]', 0x110);
-                    tag.data = 'This is a test :)';
-                    jpeg.exif = exif.save();
-                }
-                
-                console.log('Re-serialized jpeg');
-                var output = jpeg.save();
-                console.log(output);
-                
-                //save(output, 'output.jpg');
-            });
-            
-            // Test 2
-            MD.get('im.tif', function(buf) {
-                console.log('\n');
-                console.log('[ TEST 2 ]');
-                
-                console.log('Input');
-                console.log(buf);
-                
-                console.log('Primary TIFF structure')
-                var tiff = new MD.TiffResource(buf);
-                console.log(tiff);
-                
-                console.log('Re-serialized TIFF structure')
-                var output = tiff.save();
-                console.log(output);
-            });
-            
-            // Test 3
-            MD.get('im.dng', function(buf) {
-                console.log('\n');
-                console.log('[ TEST 3 ]');
-                
-                console.log('Input');
-                console.log(buf);
-                
-                console.log('Primary DNG structure')
-                var tiff = new MD.TiffResource(buf);
-                console.log(tiff);
-                
-                console.log('Re-serialized TIFF structure')
-                var output = tiff.save();
-                console.log(output);
-            });
-            
-            // Test 4
-            MD.get('im.nef', function(buf) {
-                console.log('\n');
-                console.log('[ TEST 4 ]');
-                
-                console.log('Input');
-                console.log(buf);
-                
-                console.log('Primary DNG structure')
-                var tiff = new MD.TiffResource(buf);
-                console.log(tiff);
-                
-                console.log('Re-serialized TIFF structure')
-                var output = tiff.save();
-                console.log(output);
-            });
             
         
         </script>

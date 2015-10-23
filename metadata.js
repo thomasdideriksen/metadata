@@ -165,6 +165,60 @@ MD.get = function(url, success, failure) {
 };
 
 //
+// Base64 encodes the specified ArrayBuffer
+//
+MD.encodeBase64 = function(buffer) { 
+    var buffer8 = new Uint8Array(buffer);
+    var table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    var extraBytes = buffer8.length % 3;
+    var result = ''
+    var temp, length, i;
+    // Helper functions
+    function lookup(num) {
+      return table.charAt(num);
+    }
+    function encode(num) {
+      return lookup(num >> 18 & 0x3F) + 
+             lookup(num >> 12 & 0x3F) + 
+             lookup(num >> 6 & 0x3F) + 
+             lookup(num & 0x3F);
+    }
+    // Iterate through buffer, 3 bytes at the time
+    for (i = 0, length = buffer8.length - extraBytes; i < length; i += 3) {
+      temp = (buffer8[i] << 16) + 
+             (buffer8[i + 1] << 8) + 
+             (buffer8[i + 2]);
+      result += encode(temp);
+    }
+    // Handle remaining bytes
+    switch (extraBytes) {
+      case 1:
+        temp = buffer8[buffer.length - 1];
+        result += lookup(temp >> 2);
+        result += lookup((temp << 4) & 0x3F);
+        result += '==';
+        break;
+      case 2:
+        temp = (buffer8[buffer8.length - 2] << 8) + (buffer8[buffer8.length - 1]);
+        result += lookup(temp >> 10);
+        result += lookup((temp >> 4) & 0x3F);
+        result += lookup((temp << 2) & 0x3F);
+        result += '=';
+        break;
+      default:
+        break;
+    }
+    return result;
+}
+
+//
+// Create data URL from ArrayBuffer with specified mimetype (mimetype example: 'image/jpeg')
+//
+MD.toDataURL = function(buffer, mimetype) {
+    return 'data:' + mimetype + ';base64,' + MD.encodeBase64(buffer);
+}
+
+//
 // Binary reader class
 //
 MD.BinaryReader = function(buffer, endian) {
@@ -303,7 +357,7 @@ MD.JpegResource.prototype = {
     //
     // Get 'Photoshop 3.0' buffer
     //
-    get photoshop() {
+    get photoshopBuffer() {
         'use strict';
         return this._getSegmentDataSingle(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30);
     },
@@ -311,7 +365,7 @@ MD.JpegResource.prototype = {
     //
     // Set 'Photoshop 3.0' buffer
     //
-    set photoshop(buffer) {
+    set photoshopBuffer(buffer) {
         'use strict';
         this._removeSegments(MD.JPEG_MARKER_APP13, MD.JPEG_HEADER_PHOTOSHOP_30);
         if (!buffer) {
@@ -325,7 +379,7 @@ MD.JpegResource.prototype = {
     //
     // Get EXIF buffer
     //
-    get exif() {
+    get exifBuffer() {
         'use strict';
         return this._getSegmentDataSingle(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
     },
@@ -333,7 +387,7 @@ MD.JpegResource.prototype = {
     //
     // Set EXIF buffer
     //
-    set exif(buffer) {
+    set exifBuffer(buffer) {
         'use strict';
         this._removeSegments(MD.JPEG_MARKER_APP1, MD.JPEG_HEADER_EXIF);
         if (!buffer) {
@@ -348,7 +402,7 @@ MD.JpegResource.prototype = {
     //
     // Get embedded ICC profile
     //
-    get iccProfile() {
+    get iccProfileBuffer() {
         'use strict';
         // Get ICC segments
         var iccSegments = this._findSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
@@ -391,7 +445,7 @@ MD.JpegResource.prototype = {
     //
     // Set embedded ICC profile
     //
-    set iccProfile(buffer) {
+    set iccProfileBuffer(buffer) {
         'use strict';
         // Remove existing ICC profile (if present)
         this._removeSegments(MD.JPEG_MARKER_APP2, MD.JPEG_HEADER_ICCPROFILE);
@@ -432,10 +486,10 @@ MD.JpegResource.prototype = {
     //
     // Get embedded jpeg thumbnail
     //
-    get thumbnail() {
+    get thumbnailBuffer() {
         // First, attempt to get the thumbnail from the Photoshop segment
-        if (this.photoshop) {
-            var photoshop = new MD.PhotoshopResource(this.photoshop);
+        if (this.photoshopBuffer) {
+            var photoshop = new MD.PhotoshopResource(this.photoshopBuffer);
             var thumb = photoshop.getTag(MD.PHOTOSHOP_ID_THUMB5);
             if (!thumb) {
                 thumb = photoshop.getTag(MD.PHOTOSHOP_ID_THUMB4);
@@ -457,8 +511,8 @@ MD.JpegResource.prototype = {
             } 
         }
         // Otherwise attempt to get the legacy thumbnail from IFD1
-        if (this.exif) {
-            var exif = new MD.TiffResource(exifBuf);
+        if (this.exifBuffer) {
+            var exif = new MD.TiffResource(this.exifBuffer);
             var data = exif.getData('/ifd[1]', 'jpeginterchangeformat');
             return (data && data.length == 1) ? data[0] : undefined;
         }
