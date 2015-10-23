@@ -8,7 +8,7 @@ Metadata.js is a compact, self-contained Javascript library for reading and writ
 * Embedded thumbnails
 * Embedded ICC profiles
 
-The library operates on data in-memory, specifically using [ArrayBuffers](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer). ArrayBuffers are typically obtained using XHRs or the [FileReader](https://developer.mozilla.org/en-US/docs/Web/API/FileReader) API.
+The library operates on data in-memory, specifically using [ArrayBuffers](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer).
 
 
 # code examples
