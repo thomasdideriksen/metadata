@@ -143,8 +143,8 @@
                     var tags = tiff.enumerateTags();
                     for (var i = 0; i < tags.length; i++) {
                         var tag = tags[i].tag;
-                        //document.body.innerHTML += '0x' + tag.id.toString(16);
-                        //document.body.innerHTML += ', ' + tag.data + '<br>';
+                        document.body.innerHTML += '<br>0x' + tag.id.toString(16);
+                        document.body.innerHTML += ', ' + tag.data;
                     }
                     
                     console.log('Re-serialized TIFF structure')

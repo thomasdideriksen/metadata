@@ -20,6 +20,8 @@
 // THE SOFTWARE.
 //
 
+/*jshint bitwise: false*/
+
 var MD = {};
 
 //
@@ -171,7 +173,7 @@ MD.encodeBase64 = function(buffer) {
     var buffer8 = new Uint8Array(buffer);
     var table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
     var extraBytes = buffer8.length % 3;
-    var result = ''
+    var result = '';
     var temp, length, i;
     // Helper functions
     function lookup(num) {
@@ -209,14 +211,14 @@ MD.encodeBase64 = function(buffer) {
         break;
     }
     return result;
-}
+};
 
 //
 // Create data URL from ArrayBuffer with specified mimetype (mimetype example: 'image/jpeg')
 //
 MD.toDataURL = function(buffer, mimetype) {
     return 'data:' + mimetype + ';base64,' + MD.encodeBase64(buffer);
-}
+};
 
 //
 // Binary reader class
@@ -477,7 +479,7 @@ MD.JpegResource.prototype = {
         }
         // Insert ICC profile segments in segment array
         var insertIdx = this._lastSegmentIndex([MD.JPEG_MARKER_APP0, MD.JPEG_MARKER_APP1]) + 1;
-        for (i = 0; i < iccSegments.length; i++) {
+        for (var i = 0; i < iccSegments.length; i++) {
             this._segments.splice(insertIdx, 0, iccSegments[i]);
             insertIdx++;
         }
@@ -497,13 +499,7 @@ MD.JpegResource.prototype = {
             if (thumb) {
                 var reader = new MD.BinaryReader(thumb.data, MD.BIG_ENDIAN);
                 var format = reader.read32u();
-                var width = reader.read32u();
-                var height = reader.read32u();
-                var widthBytes = reader.read32u();
-                var totalSize = reader.read32u();
-                var compressedSize = reader.read32u();
-                var bitsPerPixel = reader.read16u();
-                var numberOfPlanes = reader.read16u();
+                reader.position += 24; // Note: Skip header
                 // We only support jpeg compressed thumbnails for now. (0 = uncompressed, 1 = jpeg)
                 if (format == 1 ) {
                     return reader.readRemaining();
@@ -663,7 +659,7 @@ MD.JpegResource.prototype = {
     //
     // Create a segment buffer
     //
-    _createSegment(marker, header, payload) {
+    _createSegment: function(marker, header, payload) {
         'use strict';
         // Compute and verify segment size
         var segmentSize = payload.byteLength + header.length;
@@ -768,11 +764,13 @@ MD.TiffResource.prototype = {
         var list = [];
         this._enumerateRecursive(this._tree, '', function(path, ifd) {
             for (var i in ifd.data) {
-                list.push({
-                    path: path,
-                    name: i,
-                    data: ifd.data[i].data
-                });
+                if (ifd.data.hasOwnProperty(i)) {
+                    list.push({
+                        path: path,
+                        name: i,
+                        data: ifd.data[i].data
+                    });
+                }
             }
         });
         return list;
@@ -805,7 +803,7 @@ MD.TiffResource.prototype = {
             positionId: pair.positionId,
             lengthId: pair.lengthId,
             data: data
-        }
+        };
         // Ensure that the corresponding tag pair is present in the IFD
         this._removeTag(ifd.tags, pair.positionId);
         ifd.tags.push({
@@ -974,22 +972,24 @@ MD.TiffResource.prototype = {
             var ifd = trunk[i];
             if (ifd.data) {
                 for (var j in ifd.data) {
-                    var chunk = ifd.data[j];
-                    var offsetLen = dataOffsets[i][chunk.lengthId];
-                    var offsetPos = dataOffsets[i][chunk.positionId];
-                    if (offsetLen && offsetPos) {
-                        var k;
-                        var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
-                        writer.position = offsetLen.offset;
-                        for (k = 0; k < chunk.data.length; k++) {
-                            writer.write32u(chunk.data[k].byteLength);
-                        }
-                        writer.position = offsetPos.offset;
-                        for (k = 0; k < chunk.data.length; k++) {
-                            writer.write32u(payloadWriter.position);
-                            payloadWriter.write(chunk.data[k]);
-                            if (chunk.data[k].byteLength % 2 == 1) {
-                                payloadWriter.write8u(0); // Padding
+                    if (ifd.data.hasOwnProperty(j)) {
+                        var chunk = ifd.data[j];
+                        var offsetLen = dataOffsets[i][chunk.lengthId];
+                        var offsetPos = dataOffsets[i][chunk.positionId];
+                        if (offsetLen && offsetPos) {
+                            var k;
+                            var writer = new MD.BinaryWriter(layoutWriter.buffer, layoutWriter.endian);
+                            writer.position = offsetLen.offset;
+                            for (k = 0; k < chunk.data.length; k++) {
+                                writer.write32u(chunk.data[k].byteLength);
+                            }
+                            writer.position = offsetPos.offset;
+                            for (k = 0; k < chunk.data.length; k++) {
+                                writer.write32u(payloadWriter.position);
+                                payloadWriter.write(chunk.data[k]);
+                                if (chunk.data[k].byteLength % 2 == 1) {
+                                    payloadWriter.write8u(0); // Padding
+                                }
                             }
                         }
                     }
@@ -1005,14 +1005,16 @@ MD.TiffResource.prototype = {
         'use strict';
         var valid = true;
         for (var i in MD.KNOWN_PAIRS) {
-            var pair = MD.KNOWN_PAIRS[i];
-            if (id == pair.positionId) {
-                valid = (pair.lengthId in tagsById);
-                break;
-            }
-            if (id == pair.lengthId) {
-                valid = (pair.positionId in tagsById);
-                break;
+            if (MD.KNOWN_PAIRS.hasOwnProperty(i)) {
+                var pair = MD.KNOWN_PAIRS[i];
+                if (id == pair.positionId) {
+                    valid = (pair.lengthId in tagsById);
+                    break;
+                }
+                if (id == pair.lengthId) {
+                    valid = (pair.positionId in tagsById);
+                    break;
+                }
             }
         }
         return !valid;
@@ -1024,9 +1026,11 @@ MD.TiffResource.prototype = {
     _isMissingDataPayload: function(id, data) {
         'use strict';
         for (var i in MD.KNOWN_PAIRS) {
-            var pair = MD.KNOWN_PAIRS[i];
-            if (pair.positionId == id || pair.lengthId == id) {
-                return !(i in data);
+            if (MD.KNOWN_PAIRS.hasOwnProperty(i)) {
+                var pair = MD.KNOWN_PAIRS[i];
+                if (pair.positionId == id || pair.lengthId == id) {
+                    return !(i in data);
+                }
             }
         }
         return false;
@@ -1143,9 +1147,11 @@ MD.TiffResource.prototype = {
             sizes.layoutSize += 4;
             if (ifd.data) {
                 for (j in ifd.data) {
-                    for (k = 0; k < ifd.data[j].data.length; k++) {
-                        dataSize = ifd.data[j].data[k].byteLength;
-                        sizes.payloadSize += dataSize + (dataSize % 2); // Note: Padding
+                    if (ifd.data.hasOwnProperty(j)) {
+                        for (k = 0; k < ifd.data[j].data.length; k++) {
+                            dataSize = ifd.data[j].data[k].byteLength;
+                            sizes.payloadSize += dataSize + (dataSize % 2); // Note: Padding
+                        }
                     }
                 }
             }
@@ -1254,30 +1260,32 @@ MD.TiffResource.prototype = {
         // Loop through all know data payload ID pairs
         var result = {};
         for (var i in MD.KNOWN_PAIRS) {
-            var pair = MD.KNOWN_PAIRS[i];
-            var tagPos = tagsById[pair.positionId];
-            var tagLen = tagsById[pair.lengthId];
-            // Verify we don't have any broken pairs
-            MD.check((tagPos && tagLen) || (!tagPos && !tagLen), 'Missing one tag in data tag-pair');
-            if (tagPos && tagLen) {
-                // If the pair is present, do some sanity
-                MD.check(tagPos.type == MD.TIFF_TYPE_LONG, 'Invalid tag type for position tag');
-                MD.check(tagLen.type == MD.TIFF_TYPE_LONG || tagLen.type == MD.TIFF_TYPE_SHORT || tagLen.type == MD.TIFF_TYPE_BYTE, 'Invalid tag type for length tag');
-                var positions = (tagPos.data instanceof Array) ? tagPos.data : [tagPos.data];
-                var lengths = (tagLen.data instanceof Array) ? tagLen.data : [tagLen.data];
-                MD.check(positions.length == lengths.length, 'Inconsistent data pair list length');
-                // Extract data payload
-                var dataList = [];
-                for (var j = 0; j < positions.length; j++) {
-                    reader.position = positions[j];
-                    dataList.push(reader.read(lengths[j]));
+            if (MD.KNOWN_PAIRS.hasOwnProperty(i)) {
+                var pair = MD.KNOWN_PAIRS[i];
+                var tagPos = tagsById[pair.positionId];
+                var tagLen = tagsById[pair.lengthId];
+                // Verify we don't have any broken pairs
+                MD.check((tagPos && tagLen) || (!tagPos && !tagLen), 'Missing one tag in data tag-pair');
+                if (tagPos && tagLen) {
+                    // If the pair is present, do some sanity
+                    MD.check(tagPos.type == MD.TIFF_TYPE_LONG, 'Invalid tag type for position tag');
+                    MD.check(tagLen.type == MD.TIFF_TYPE_LONG || tagLen.type == MD.TIFF_TYPE_SHORT || tagLen.type == MD.TIFF_TYPE_BYTE, 'Invalid tag type for length tag');
+                    var positions = (tagPos.data instanceof Array) ? tagPos.data : [tagPos.data];
+                    var lengths = (tagLen.data instanceof Array) ? tagLen.data : [tagLen.data];
+                    MD.check(positions.length == lengths.length, 'Inconsistent data pair list length');
+                    // Extract data payload
+                    var dataList = [];
+                    for (var j = 0; j < positions.length; j++) {
+                        reader.position = positions[j];
+                        dataList.push(reader.read(lengths[j]));
+                    }
+                    // Store data payload
+                    result[i] = {
+                        positionId: pair.positionId,
+                        lengthId: pair.lengthId,
+                        data: dataList
+                    };
                 }
-                // Store data payload
-                result[i] = {
-                    positionId: pair.positionId,
-                    lengthId: pair.lengthId,
-                    data: dataList
-                };
             }
         }
         // Return data payload array
@@ -1551,9 +1559,9 @@ MD.PhotoshopResource.prototype = {
     //
     save: function() {
         'use strict';
-        var i, size = 0;
+        var i, tag, size = 0;
         for (i = 0; i < this._tags.length; i++) {
-            var tag = this._tags[i];
+            tag = this._tags[i];
             var nameLength = tag.name.length + 1;
             nameLength += (nameLength % 2);
             var dataLength = tag.data.byteLength;
@@ -1563,7 +1571,7 @@ MD.PhotoshopResource.prototype = {
         var result = new ArrayBuffer(size);
         var writer = new MD.BinaryWriter(result, MD.BIG_ENDIAN);
         for (i = 0; i< this._tags.length; i++) {
-            var tag = this._tags[i];
+            tag = this._tags[i];
             writer.write32u(MD.PHOTOSHOP_8BIM);
             writer.write16u(tag.id);
             this._writePascalString(writer, tag.name);
