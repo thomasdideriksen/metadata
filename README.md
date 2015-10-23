@@ -1,7 +1,7 @@
 # metadata.js examples
 
 Get the camera model name from a jpeg file:
-```
+```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 if (jpeg.exifBuffer) {
   var exif = new MD.TiffResource(jpeg.exifBuffer);
@@ -13,7 +13,7 @@ if (jpeg.exifBuffer) {
 ```
 
 Extract and show the embedded thumbnail from a jpeg file:
-```
+```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 if (jpeg.thumbnailBuffer) {
   var im = document.createElement('img');
@@ -23,7 +23,7 @@ if (jpeg.thumbnailBuffer) {
 ```
 
 Enumerate all EXIF tags in a jpeg file:
-```
+```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 if (jpeg.exifBuffer) {
   var exif = new MD.TiffResource(jpeg.exifBuffer);
