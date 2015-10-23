@@ -13,7 +13,7 @@ The library operates on data in-memory, specifically using [ArrayBuffers](https:
 
 # code examples
 
-Get the camera model name from a jpeg file:
+Get the camera [model](http://www.awaresystems.be/imaging/tiff/tifftags/model.html) name from a jpeg file:
 ```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 var exif = new MD.TiffResource(jpeg.exifBuffer);
@@ -47,7 +47,7 @@ for (var i = 0; i < allTags.length; i++) {
 }
 ```  
 
-Set the 'Software' tag in a jpeg file and save the result:
+Set the [software](http://www.awaresystems.be/imaging/tiff/tifftags/software.html) tag in a jpeg file and save the result:
 ```javascript
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 var exif = new MD.TiffResource(jpeg.exifBuffer);
