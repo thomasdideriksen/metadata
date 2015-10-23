@@ -1,6 +1,6 @@
 # metadata
 
-Example of how do get the camera model name from the EXIF metadata block:
+Example of how to get the camera model name from a jpeg file:
 ```
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 if (jpeg.exif) {
