@@ -586,6 +586,7 @@ MD.JpegResource.prototype = {
     // Finds the last position (index) of the specified marker type(s)
     //
     _lastSegmentIndex: function(markers) {
+        'use strict';
         var idx = 0;
         for (var i = 0; i < this._segments.length; i++) {
             var segment = this._segments[i];
@@ -1395,6 +1396,7 @@ MD.TiffResource.prototype = {
     // match the path (if they do not already exist)
     //
     _getTagsByPath: function(path, create) {
+        'use strict';
         var ifd = this._getIfdByPath(path, create);
         return ifd ? ifd.tags : undefined;
     },
