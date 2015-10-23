@@ -105,15 +105,15 @@ MD.PHOTOSHOP_ID_THUMB5 = 0x040C;
 // to properly extract and re-insert this data.
 //
 MD.KNOWN_PAIRS = {
-    'jpeginterchangeformat': {
+    jpeginterchangeformat: {
         positionId: MD.TIFF_ID_JPEGINTERCHANGEFORMAT,
         lengthId: MD.TIFF_ID_JPEGINTERCHANGEFORMATLENGTH
     },
-    'strips': {
+    strips: {
         positionId: MD.TIFF_ID_STRIPOFFSETS,
         lengthId: MD.TIFF_ID_STRIPBYTECOUNTS
     },
-    'tiles': {
+    tiles: {
         positionId: MD.TIFF_ID_TILEOFFSETS,
         lengthId: MD.TIFF_ID_TILEBYTECOUNTS
     }
@@ -126,10 +126,10 @@ MD.KNOWN_PAIRS = {
 // This structure also includes human readable names for adressing purposes.
 // 
 MD.KNOWN_SUBIFDS = {
-    'exif': MD.TIFF_ID_EXIFIFD,
-    'gps': MD.TIFF_ID_GPSIFD,
-    'interoperability': MD.TIFF_ID_INTEROPERABILITYIFD,
-    'subifds': MD.TIFF_ID_SUBIFDS
+    exif: MD.TIFF_ID_EXIFIFD,
+    gps: MD.TIFF_ID_GPSIFD,
+    interoperability: MD.TIFF_ID_INTEROPERABILITYIFD,
+    subifds: MD.TIFF_ID_SUBIFDS
 };
 
 //
@@ -170,23 +170,23 @@ MD.get = function(url, success, failure) {
 // Base64 encodes the specified ArrayBuffer
 //
 MD.encodeBase64 = function(buffer) { 
+    'use strict';
     var buffer8 = new Uint8Array(buffer);
     var table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
     var extraBytes = buffer8.length % 3;
-    var result = '';
-    var temp, length, i;
+    var temp, result = '';
     // Helper functions
-    function lookup(num) {
-      return table.charAt(num);
-    }
-    function encode(num) {
-      return lookup(num >> 18 & 0x3F) + 
-             lookup(num >> 12 & 0x3F) + 
-             lookup(num >> 6 & 0x3F) + 
-             lookup(num & 0x3F);
-    }
+    var lookup = function(num) {
+        return table.charAt(num);
+    };
+    var encode = function(num) {
+        return lookup(num >> 18 & 0x3F) + 
+               lookup(num >> 12 & 0x3F) + 
+               lookup(num >> 6  & 0x3F) + 
+               lookup(num & 0x3F);
+    };
     // Iterate through buffer, 3 bytes at the time
-    for (i = 0, length = buffer8.length - extraBytes; i < length; i += 3) {
+    for (var i = 0; i < (buffer8.length - extraBytes); i += 3) {
       temp = (buffer8[i] << 16) + 
              (buffer8[i + 1] << 8) + 
              (buffer8[i + 2]);
@@ -217,6 +217,7 @@ MD.encodeBase64 = function(buffer) {
 // Create data URL from ArrayBuffer with specified mimetype (mimetype example: 'image/jpeg')
 //
 MD.toDataURL = function(buffer, mimetype) {
+    'use strict';
     return 'data:' + mimetype + ';base64,' + MD.encodeBase64(buffer);
 };
 
