@@ -17,7 +17,7 @@ Example of how to extract and show the embedded thumbnail from a jpeg file:
 var jpeg = new MD.JpegResource(jpegArrayBuffer);
 if (jpeg.thumbnailBuffer) {
   var im = document.createElement('img');
-  im.src = MD.toDataURL(jpeg.thumbnailBuffer);
+  im.src = MD.toDataURL(jpeg.thumbnailBuffer, 'image/jpeg');
   document.body.appendChild(im);
 }
 ```
