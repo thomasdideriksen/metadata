@@ -1,4 +1,14 @@
-# metadata.js examples
+# metadata.js
+
+Metadata.js is a compact, self-contained Javascript library for reading and writing image metadata. The library currently supports:
+
+* JPEG and TIFF images
+* EXIF metadata
+* Photoshop/8BIM metadata
+* Embedded thumbnails
+* Embedded ICC profiles
+
+# code examples
 
 Get the camera model name from a jpeg file:
 ```javascript
