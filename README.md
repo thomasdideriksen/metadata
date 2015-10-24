@@ -72,5 +72,29 @@ In order to navigate this IFD structure and extract/insert tags in specific IFDs
 var tag = exif.getTag('/ifd[0]/exif[0]/ifd[0]', 0x829a);
 ```
 
+# documentation
+
+##*JpegResource*
+Jpeg serializer/deserializer
+####constructor
+```javascript
+new MD.JpegResource(buffer);
+```
+*buffer* is an ArrayBuffer containing a jpeg image
+
+####properties
+*MD.JpegResource.exifBuffer*
+
+*MD.JpegResource.thumbnailBuffer*
+
+*MD.JpegResource.iccProfileBuffer*
+
+*MD.JpegResource.photoshopBuffer*
+
+####methods
+*MD.JpegResource.save()*
+
+
+
 
 
