@@ -40,8 +40,8 @@ var exif = new MD.TiffResource(jpeg.exifBuffer);
 var allTags = exif.enumerateTags();
 for (var i = 0; i < allTags.length; i++) {
   var entry = allTags[i];
-  console.log('Path    : ' + entry.path);
-  console.log('Tag ID  : 0x' + entry.tag.id.toString(16));
+  console.log('Path: ' + entry.path);
+  console.log('Tag ID: 0x' + entry.tag.id.toString(16));
   console.log('Tag type: ' + entry.tag.type);
   console.log('Tag data: ' + entry.tag.data);
 }
@@ -59,4 +59,18 @@ exif.setTag('/ifd[0]', {
 jpeg.exifBuffer = exif.save();
 var result = jpeg.save();
 ```
+
+# navigating the tag tree
+
+The TIFF/EXIF format is made up of multiple individual tags, each carrying a specific data payload such as camera name, time of capture, exposure time, etc. These tags are contained in lists called IFDs (Image File Directories). A single TIFF/EXIF block typically contains multiple IFDs, organized in a tree-like structure. For example, a typical EXIF block in a JPEG file has the following IFD structure.
+
+![alt text](https://www.dropbox.com/s/4c5byfv4hv4kpx5/jpeg.png?raw=1)
+
+In order to navigate this IFD structure and extract/insert tags in specific IFDs, metadata.js provides a simple, string-based address format. For example, if you want to extract the [exposure time](http://www.awaresystems.be/imaging/tiff/tifftags/privateifd/exif/exposuretime.html) tag, you would use the following address.
+
+```javascript
+var tag = exif.getTag('/ifd[0]/exif[0]/ifd[0]', 0x829a);
+```
+
+
 
