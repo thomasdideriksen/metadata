@@ -64,7 +64,7 @@ var result = jpeg.save();
 
 The TIFF/EXIF format is made up of multiple individual tags, each carrying a specific data payload such as camera name, time of capture, exposure time, etc. These tags are contained in lists called IFDs (Image File Directories). A single TIFF/EXIF block typically contains multiple IFDs, organized in a tree-like structure. For example, a typical EXIF block in a JPEG file has the following IFD structure.
 
-(image goes here)
+![alt text](https://www.dropbox.com/s/4c5byfv4hv4kpx5/jpeg.png?raw=1)
 
 In order to navigate this IFD structure and extract/insert tags in specific IFDs, metadata.js provides a simple, string-based address format. For example, if you want to extract the [exposure time](http://www.awaresystems.be/imaging/tiff/tifftags/privateifd/exif/exposuretime.html) tag, you would use the following address.
 
