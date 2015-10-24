@@ -1444,19 +1444,46 @@ MD.TiffResource.prototype = {
                     // ... otherwise use the numeric tag ID value
                     id = parseInt(data.name);
                     MD.check(!isNaN(id), 'Invalid branch in path: ' + data.name);
+                    // TODO: Verify that 'id' is in KNOWN_SUBIFDS
                 }
                 if (!(id in ifd.branches)) {
                     if (create) {
+                        // Add branch
                         ifd.branches[id] = [];
+                        // Add the corresponding pointer tag
+                        this._removeTag(ifd.tags, id);
+                        ifd.tags.push({
+                            id: id,
+                            type: MD.TIFF_TYPE_LONG,
+                            data: 0
+                        });
                     } else {
                         return undefined;
                     }
                 }
                 if (data.index >= ifd.branches[id].length) {
                     if (create) {
+                        // Make sure we have enough sub trunks in the branch to accommodate the specified index
                         for (j = ifd.branches[id].length; j <= data.index; j++) {
                             ifd.branches[id].push([]);
                         }
+                        // Find the corresponding pointer tag
+                        var pointerTag;
+                        for (j = 0; j < ifd.tags.length; j++) {
+                            if (ifd.tags[j].id == id) {
+                                pointerTag = ifd.tags[j];
+                                break;
+                            }
+                        }
+                        MD.check(pointerTag, 'Could not find pointer tag');
+                        // Make sure that the number of offsets in the pointer tag matches number of sub trunks
+                        var length = ifd.branches[id].length;
+                        MD.check(length >= 1, 'One or more sub trunks must be present in branch');
+                        var offsets = [];
+                        for (j = 0; j < length; j++) {
+                            offsets.push(0);
+                        }
+                        pointerTag.data = (offsets.length == 1) ? 0 : offsets;
                     } else {
                         return undefined;
                     }
