@@ -40,8 +40,8 @@ var exif = new MD.TiffResource(jpeg.exifBuffer);
 var allTags = exif.enumerateTags();
 for (var i = 0; i < allTags.length; i++) {
   var entry = allTags[i];
-  console.log('Path    : ' + entry.path);
-  console.log('Tag ID  : 0x' + entry.tag.id.toString(16));
+  console.log('Path: ' + entry.path);
+  console.log('Tag ID: 0x' + entry.tag.id.toString(16));
   console.log('Tag type: ' + entry.tag.type);
   console.log('Tag data: ' + entry.tag.data);
 }
