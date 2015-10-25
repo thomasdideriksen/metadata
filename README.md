@@ -114,7 +114,7 @@ Tiff/EXIF serializer/deserializer
 ```javascript
 new MD.TiffResource(buffer);
 ```
-*buffer* is an ArrayBuffer containing an EXIF structure or a tiff image
+*buffer* is an ArrayBuffer containing an EXIF structure or a tiff image. Note that *buffer* is optional - if nothing is passed into the constructor, an empty TIFF structure will be created.
 ####methods
 |method name|description|
 |:------------|:----------|
