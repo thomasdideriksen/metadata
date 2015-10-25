@@ -83,18 +83,42 @@ new MD.JpegResource(buffer);
 *buffer* is an ArrayBuffer containing a jpeg image
 
 ####properties
-*MD.JpegResource.exifBuffer*
+*MD.JpegResource.prototype.exifBuffer*
 
-*MD.JpegResource.thumbnailBuffer*
+*MD.JpegResource.prototype.thumbnailBuffer*
 
-*MD.JpegResource.iccProfileBuffer*
+*MD.JpegResource.prototype.iccProfileBuffer*
 
-*MD.JpegResource.photoshopBuffer*
+*MD.JpegResource.prototype.photoshopBuffer*
 
 ####methods
-*MD.JpegResource.save()*
+*MD.JpegResource.prototype.save()*
 
+##*TiffResource*
+Tiff/EXIF serializer/deserializer
 
+####constructor
+```javascript
+new MD.TiffResource(buffer);
+```
+*buffer* is an ArrayBuffer containing an EXIF structure or a tiff image
+####methods
+*MD.TiffResource.prototype.enumerateTags()*
 
+*MD.TiffResource.prototype.getTags(path)*
 
+*MD.TiffResource.prototype.getTag(path, id)*
 
+*MD.TiffResource.prototype.setTag(path, tag)*
+
+*MD.TiffResource.prototype.removeTag(path, id)*
+
+*MD.TiffResource.prototype.enumerateData()*
+
+*MD.TiffResource.prototype.getData(path, name)*
+
+*MD.TiffResource.prototype.setData(path, name, data)*
+
+*MD.TiffResource.prototype.removeData(path, name)*
+
+*MD.TiffResource.prototype.save(endian)*
