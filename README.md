@@ -91,7 +91,7 @@ new MD.JpegResource(buffer);
 |*MD.JpegResource.prototype.photoshopBuffer* | An ArrayBuffer containing the Photoshop/8BIM metadata block of the jpeg image. This property is read/write. |
 
 ####methods
-|function name|description|
+|method name|description|
 |:------------|:----------|
 |*MD.JpegResource.prototype.save()*| This function returns an ArrayBuffer containing the jpeg image, including all changes made to the various metadata sections. |
 
@@ -104,22 +104,15 @@ new MD.TiffResource(buffer);
 ```
 *buffer* is an ArrayBuffer containing an EXIF structure or a tiff image
 ####methods
-*MD.TiffResource.prototype.enumerateTags()*
-
-*MD.TiffResource.prototype.getTags(path)*
-
-*MD.TiffResource.prototype.getTag(path, id)*
-
-*MD.TiffResource.prototype.setTag(path, tag)*
-
-*MD.TiffResource.prototype.removeTag(path, id)*
-
-*MD.TiffResource.prototype.enumerateData()*
-
-*MD.TiffResource.prototype.getData(path, name)*
-
-*MD.TiffResource.prototype.setData(path, name, data)*
-
-*MD.TiffResource.prototype.removeData(path, name)*
-
-*MD.TiffResource.prototype.save(endian)*
+|method name|description|
+|:------------|:----------|
+|*MD.TiffResource.prototype.enumerateTags()*| TODO |
+|*MD.TiffResource.prototype.getTags(path)*| TODO |
+|*MD.TiffResource.prototype.getTag(path, id)*| TODO |
+|*MD.TiffResource.prototype.setTag(path, tag)*| TODO |
+|*MD.TiffResource.prototype.removeTag(path, id)*| TODO |
+|*MD.TiffResource.prototype.enumerateData()*| TODO |
+|*MD.TiffResource.prototype.getData(path, name)*| TODO |
+|*MD.TiffResource.prototype.setData(path, name, data)*| TODO |
+|*MD.TiffResource.prototype.removeData(path, name)*| TODO |
+|*MD.TiffResource.prototype.save(endian)*| TODO |
