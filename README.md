@@ -84,14 +84,16 @@ new MD.JpegResource(buffer);
 
 ####properties
 |property name                               |description|
-|--------------------------------------------|-----------|
-|*MD.JpegResource.prototype.exifBuffer*      | test |
-|*MD.JpegResource.prototype.thumbnailBuffer* | test |
-|*MD.JpegResource.prototype.iccProfileBuffer*| test |
-|*MD.JpegResource.prototype.photoshopBuffer* | test |
+|:-------------------------------------------|:----------|
+|*MD.JpegResource.prototype.exifBuffer*      | An ArrayBuffer containing the EXIF block of the jpeg image. This property is read/write. |
+|*MD.JpegResource.prototype.thumbnailBuffer* | An ArrayBuffer containing the embedded thumbnail of the jpeg image. This property is read-only. |
+|*MD.JpegResource.prototype.iccProfileBuffer*| An ArrayBuffer containing the embedded ICC profile of the jpeg image. This property is read/write. |
+|*MD.JpegResource.prototype.photoshopBuffer* | An ArrayBuffer containing the Photoshop/8BIM metadata block of the jpeg image. This property is read/write. |
 
 ####methods
-*MD.JpegResource.prototype.save()*
+|function name|description|
+|:------------|:----------|
+|*MD.JpegResource.prototype.save()*| This function returns an ArrayBuffer containing the jpeg image, including all changes made to the various metadata sections. |
 
 ##*TiffResource*
 Tiff/EXIF serializer/deserializer
