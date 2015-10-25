@@ -72,6 +72,16 @@ In order to navigate this IFD structure and extract/insert tags in specific IFDs
 var tag = exif.getTag('/ifd[0]/exif[0]/ifd[0]', 0x829a);
 ```
 
+This scheme extends to arbitrarily complex IFD trees. As an example, consider the following structure.
+
+![alt text](https://www.dropbox.com/s/8wzwlp7cxjh5dd8/complex.png?raw=1)
+
+In order to get the blue tag, you can use the following adress.
+
+```javascript
+var tag = exif.getTag('/ifd[0]/subifds[1]/ifd[1]/subifds[0]/ifd[0]', 0xff0a);
+```
+
 # documentation
 
 ##*JpegResource*
