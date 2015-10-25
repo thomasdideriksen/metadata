@@ -76,11 +76,13 @@ This scheme extends to arbitrarily complex IFD trees. As an example, consider th
 
 ![alt text](https://www.dropbox.com/s/8wzwlp7cxjh5dd8/complex.png?raw=1)
 
-In order to get the blue tag, you can use the following adress.
+In this case you can obtain the blue tag, using the following address.
 
 ```javascript
 var tag = exif.getTag('/ifd[0]/subifds[1]/ifd[1]/subifds[0]/ifd[0]', 0xff0a);
 ```
+
+You can get a complete list of all the tags in a file, including their addresses, by using the *enumerateTags* method.
 
 # documentation
 
