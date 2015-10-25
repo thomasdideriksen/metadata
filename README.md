@@ -83,13 +83,12 @@ new MD.JpegResource(buffer);
 *buffer* is an ArrayBuffer containing a jpeg image
 
 ####properties
-*MD.JpegResource.prototype.exifBuffer*
-
-*MD.JpegResource.prototype.thumbnailBuffer*
-
-*MD.JpegResource.prototype.iccProfileBuffer*
-
-*MD.JpegResource.prototype.photoshopBuffer*
+|property name                               |description|
+|--------------------------------------------|-----------|
+|*MD.JpegResource.prototype.exifBuffer*      | test |
+|*MD.JpegResource.prototype.thumbnailBuffer* | test |
+|*MD.JpegResource.prototype.iccProfileBuffer*| test |
+|*MD.JpegResource.prototype.photoshopBuffer* | test |
 
 ####methods
 *MD.JpegResource.prototype.save()*
