@@ -127,4 +127,4 @@ new MD.TiffResource(buffer);
 |*MD.TiffResource.prototype.getData(path, name)*| Get the named data payload with *name* from the IFD corresponding to *path*  |
 |*MD.TiffResource.prototype.setData(path, name, data)*| Set the named data payload with *name* from the IFD corresponding to *path* to *data*. If the IFD and named data entry already exists it will be overwritten. |
 |*MD.TiffResource.prototype.removeData(path, name)*| Remove named data with *name* from IFD corresponding to *path* |
-|*MD.TiffResource.prototype.save(endian)*| This function returns an ArrayBuffer containing the binary TIFF/EXIF structure, including all changes made to the various tags and data payloads.  |
+|*MD.TiffResource.prototype.save(endian)*| This function returns an ArrayBuffer containing the binary TIFF/EXIF structure, including all changes made to the various tags and data payloads. The optional *endian* parameter may be used to set the endian of the binary result (allowed values are *MD.BIG_ENDIAN* or *MD.LITTLE_ENDIAN*) |
