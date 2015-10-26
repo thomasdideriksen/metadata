@@ -1444,7 +1444,14 @@ MD.TiffResource.prototype = {
                     // ... otherwise use the numeric tag ID value
                     id = parseInt(data.name);
                     MD.check(!isNaN(id), 'Invalid branch in path: ' + data.name);
-                    // TODO: Verify that 'id' is in KNOWN_SUBIFDS
+                    var found = false;
+                    for (var name in MD.KNOWN_SUBIFDS) {
+                        if (MD.KNOWN_SUBIFDS[name] == id) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    MD.check(found, 'Invalid sub IFD pointer ID in path: ' + id);
                 }
                 if (!(id in ifd.branches)) {
                     if (create) {
