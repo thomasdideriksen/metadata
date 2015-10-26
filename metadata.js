@@ -937,7 +937,7 @@ MD.TiffResource.prototype = {
                 writer.writeGeneric('setInt32', 4, 2, count, data);
                 break;
             case MD.TIFF_TYPE_DOUBLE:
-                writer.writeGeneric('setFloat32', 8, 1, count, data);
+                writer.writeGeneric('setFloat64', 8, 1, count, data);
                 break;
             default: 
                 throw 'Invalid TIFF type (' + type + ')';
