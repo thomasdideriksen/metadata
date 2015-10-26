@@ -1596,7 +1596,8 @@ MD.PhotoshopResource.prototype = {
     //
     setTag: function(tag) {
         'use strict';
-        // TODO
+        throw 'PhotoshopResource::setTag is not implemented';
+        // TODO: Implement
     },
     
     //
