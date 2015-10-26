@@ -62,7 +62,7 @@ var result = jpeg.save();
 
 # navigating the tag tree
 
-The TIFF/EXIF format is made up of multiple individual tags, each carrying a specific data payload such as camera name, time of capture, exposure time, etc. These tags are contained in lists called IFDs (Image File Directories). A single TIFF/EXIF block typically contains multiple IFDs, organized in a tree-like structure. For example, a typical EXIF block in a JPEG file has the following IFD structure.
+The Tiff/EXIF format is made up of multiple individual tags, each carrying a specific data payload such as camera name, time of capture, exposure time, etc. These tags are contained in lists called IFDs (Image File Directories). A single TIFF/EXIF block typically contains multiple IFDs, organized in a tree-like structure. For example, a typical EXIF block in a JPEG file has the following IFD structure.
 
 ![alt text](https://www.dropbox.com/s/4c5byfv4hv4kpx5/jpeg.png?raw=1)
 
@@ -114,17 +114,17 @@ Tiff/EXIF serializer/deserializer
 ```javascript
 new MD.TiffResource(buffer);
 ```
-*buffer* is an ArrayBuffer containing an EXIF structure or a tiff image. Note that *buffer* is optional - if nothing is passed into the constructor, an empty TIFF structure will be created.
+*buffer* is an ArrayBuffer containing an EXIF structure or a Tiff image. Note that *buffer* is optional - if nothing is passed into the constructor, an empty Tiff structure will be created.
 ####methods
 |method name|description|
 |:------------|:----------|
-|*MD.TiffResource.prototype.enumerateTags()*| Returns an array containing all tags in the TIFF resource. Individual entries in the list contains the tag itself, but also the corresponding IFD path.
+|*MD.TiffResource.prototype.enumerateTags()*| Returns an array containing all tags in the Tiff resource. Individual entries in the list contains the tag itself, but also the corresponding IFD path.
 |*MD.TiffResource.prototype.getTags(path)*| Get all tags in the IFD that corresponds to *path* |
 |*MD.TiffResource.prototype.getTag(path, id)*| Get the tag with *id* from the IDS that corresponds to *path*  |
 |*MD.TiffResource.prototype.setTag(path, tag)*| Set the *tag* in the IFD that corresponds to *path*. If the IFD and tag already exists, it will be overwritten. |
 |*MD.TiffResource.prototype.removeTag(path, id)*| Remove tag with specified *id* fro the IFD that corresponds to *path* |
-|*MD.TiffResource.prototype.enumerateData()*| Return an array of all the named data payloads in the TIFF resource. Individual entries in the list contains the data itself, but also the corresponding IFD path and data-name |
+|*MD.TiffResource.prototype.enumerateData()*| Return an array of all the named data payloads in the Tiff resource. Individual entries in the list contains the data itself, but also the corresponding IFD path and data-name |
 |*MD.TiffResource.prototype.getData(path, name)*| Get the named data payload with *name* from the IFD corresponding to *path*  |
 |*MD.TiffResource.prototype.setData(path, name, data)*| Set the named data payload with *name* from the IFD corresponding to *path* to *data*. If the IFD and named data entry already exists it will be overwritten. |
 |*MD.TiffResource.prototype.removeData(path, name)*| Remove named data with *name* from IFD corresponding to *path* |
-|*MD.TiffResource.prototype.save(endian)*| This function returns an ArrayBuffer containing the binary TIFF/EXIF structure, including all changes made to the various tags and data payloads. The optional *endian* parameter may be used to set the endian of the binary result (allowed values are *MD.BIG_ENDIAN* or *MD.LITTLE_ENDIAN*) |
+|*MD.TiffResource.prototype.save(endian)*| This function returns an ArrayBuffer containing the binary Tiff/EXIF structure, including all changes made to the various tags and data payloads. The optional *endian* parameter may be used to set the endian of the binary result (allowed values are *MD.BIG_ENDIAN* or *MD.LITTLE_ENDIAN*) |
