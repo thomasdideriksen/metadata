@@ -800,24 +800,32 @@ MD.TiffResource.prototype = {
         // Set data
         var pair = MD.KNOWN_PAIRS[name];
         var ifd = this._getIfdByPath(path, true);
+        var dataArray = (data instanceof Array) ? data : [data];
         ifd.data = ifd.data ? ifd.data : {};
         ifd.data[name] = {
             positionId: pair.positionId,
             lengthId: pair.lengthId,
-            data: data
+            data: dataArray
         };
+        // Create tag data
+        var posData = [];
+        var lenData = [];
+        for (var i = 0; i < dataArray.length; i++) {
+            posData.push(0);
+            lenData.push(0);
+        }
         // Ensure that the corresponding tag pair is present in the IFD
         this._removeTag(ifd.tags, pair.positionId);
         ifd.tags.push({
             id: pair.positionId,
             type: MD.TIFF_TYPE_LONG,
-            data: 0
+            data: (posData.length == 1) ? 0 : posData;
         });
         this._removeTag(ifd.tags, pair.lengthId);
         ifd.tags.push({
             id: pair.lengthId,
             type: MD.TIFF_TYPE_LONG,
-            data: 0
+            data: (lenData.length == 1) ? 0 : lenData;
         });
     },
     
