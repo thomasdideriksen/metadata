@@ -66,7 +66,7 @@ The TIFF/EXIF format is made up of multiple individual tags, each carrying a spe
 
 ![alt text](https://www.dropbox.com/s/4c5byfv4hv4kpx5/jpeg.png?raw=1)
 
-In order to navigate this IFD structure and extract/insert tags in specific IFDs, metadata.js provides a simple, string-based address format. For example, if you want to extract the [exposure time](http://www.awaresystems.be/imaging/tiff/tifftags/privateifd/exif/exposuretime.html) tag, you would use the following address.
+In order to navigate this IFD structure and extract/insert tags in specific IFDs, metadata.js provides a simple, string-based format for adressing IFDs. For example, if you want to extract the [exposure time](http://www.awaresystems.be/imaging/tiff/tifftags/privateifd/exif/exposuretime.html) tag, you would use the following IFD path.
 
 ```javascript
 var tag = exif.getTag('/ifd[0]/exif[0]/ifd[0]', 0x829a);
@@ -76,13 +76,13 @@ This scheme extends to arbitrarily complex IFD trees. As an example, consider th
 
 ![alt text](https://www.dropbox.com/s/8wzwlp7cxjh5dd8/complex.png?raw=1)
 
-In this case you can obtain the blue tag, using the following address.
+In this case you can obtain the blue tag, using the following IFD path.
 
 ```javascript
 var tag = exif.getTag('/ifd[0]/subifds[1]/ifd[1]/subifds[0]/ifd[0]', 0xff0a);
 ```
 
-You can get a complete list of all the tags in a file, including their addresses, by using the *enumerateTags* method.
+You can get a complete list of all the tags in a file, including their IFD paths, by using the *enumerateTags* method.
 
 # documentation
 
@@ -118,13 +118,13 @@ new MD.TiffResource(buffer);
 ####methods
 |method name|description|
 |:------------|:----------|
-|*MD.TiffResource.prototype.enumerateTags()*| TODO |
-|*MD.TiffResource.prototype.getTags(path)*| TODO |
-|*MD.TiffResource.prototype.getTag(path, id)*| TODO |
-|*MD.TiffResource.prototype.setTag(path, tag)*| TODO |
-|*MD.TiffResource.prototype.removeTag(path, id)*| TODO |
-|*MD.TiffResource.prototype.enumerateData()*| TODO |
-|*MD.TiffResource.prototype.getData(path, name)*| TODO |
-|*MD.TiffResource.prototype.setData(path, name, data)*| TODO |
-|*MD.TiffResource.prototype.removeData(path, name)*| TODO |
-|*MD.TiffResource.prototype.save(endian)*| TODO |
+|*MD.TiffResource.prototype.enumerateTags()*| Returns an array containing all tags in the TIFF resource. Individual entries in the list contains the tag itself, but also the corresponding IFD path.
+|*MD.TiffResource.prototype.getTags(path)*| Get all tags in the IFD that corresponds to *path* |
+|*MD.TiffResource.prototype.getTag(path, id)*| Get the tag with *id* from the IDS that corresponds to *path*  |
+|*MD.TiffResource.prototype.setTag(path, tag)*| Set the *tag* in the IFD that corresponds to *path*. If the IFD and tag already exists, it will be overwritten. |
+|*MD.TiffResource.prototype.removeTag(path, id)*| Remove tag with specified *id* fro the IFD that corresponds to *path* |
+|*MD.TiffResource.prototype.enumerateData()*| Return an array of all the named data payloads in the TIFF resource. Individual entries in the list contains the data itself, but also the corresponding IFD path and data-name |
+|*MD.TiffResource.prototype.getData(path, name)*| Get the named data payload with *name* from the IFD corresponding to *path*  |
+|*MD.TiffResource.prototype.setData(path, name, data)*| Set the named data payload with *name* from the IFD corresponding to *path* to *data*. If the IFD and named data entry already exists it will be overwritten. |
+|*MD.TiffResource.prototype.removeData(path, name)*| Remove named data with *name* from IFD corresponding to *path* |
+|*MD.TiffResource.prototype.save(endian)*| This function returns an ArrayBuffer containing the binary TIFF/EXIF structure, including all changes made to the various tags and data payloads.  |
